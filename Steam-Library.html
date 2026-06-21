@@ -1,15 +1,15 @@
 
 <!DOCTYPE html>
-<html data-src-ver="bc01f935" lang="fr" data-om-id="bc01f935:0">
-<head data-om-id="bc01f935:1">
+<html data-src-ver="d61f444e" lang="fr" data-om-id="d61f444e:0">
+<head data-om-id="d61f444e:1">
 <style data-omelette-injected>html,body{background:transparent}</style><script data-omelette-injected>(()=>{var j=["https://claude.ai","https://preview.claude.ai"];var x=true;var S=30000;var f=3000;document.addEventListener("DOMContentLoaded",()=>{const H=window.Babel;const G="om-src-id";if(H&&H.registerPlugin&&!(H.availablePlugins&&H.availablePlugins[G])){H.registerPlugin(G,({types:Y})=>({visitor:{JSXOpeningElement(U,Q){const J=U.node;if(J.name&&J.name.type==="JSXMemberExpression")return;for(let V=0;V<J.attributes.length;V++){const L=J.attributes[V];if(L.type==="JSXAttribute"&&L.name&&L.name.name==="data-om-id")return}const W=Q.file&&Q.file.opts&&Q.file.opts.filename||"?";const Z=J.loc&&J.loc.start;const z=`jsx:${W}:${J.start??0}:${Z?Z.line:0}:${Z?Z.column+1:0}`;J.attributes.push(Y.jsxAttribute(Y.jsxIdentifier("data-om-id"),Y.stringLiteral(z)))}}}))}const k="om-text-extract";let A=false;if(x&&H&&H.registerPlugin&&!(H.availablePlugins&&H.availablePlugins[k])){const Y=window.React;if(Y&&Y.useSyncExternalStore&&Y.createElement){A=true;const U={};const Q=new Set;let J=0;window.__omTextO=U;window.__omTextSet=(z)=>{for(const V in z){const L=z[V];if(L==null)delete U[V];else U[V]=L}J++;Q.forEach((V)=>V())};const W=(z)=>{Q.add(z);return()=>Q.delete(z)};const Z=()=>J;window.__OmT=function z(V){Y.useSyncExternalStore(W,Z,Z);return Y.createElement("span",{"data-om-text":V.i,className:"__om-t"},V.i in U?U[V.i]:V.children)};H.registerPlugin(k,({types:z})=>{const V={style:1,script:1,noscript:1,textarea:1,title:1,option:1,text:1,tspan:1,textPath:1};const L={placeholder:1,alt:1,title:1,label:1,"aria-label":1,"aria-description":1,"aria-placeholder":1};const _=($,C)=>z.logicalExpression("??",z.memberExpression(z.logicalExpression("||",z.memberExpression(z.identifier("window"),z.identifier("__omTextO")),z.objectExpression([])),z.stringLiteral($),true),C);const E=($)=>$.file&&$.file.opts&&$.file.opts.filename||"?";const B=($)=>$.file&&$.file.code||"";const b=($,C)=>{const X=(F)=>F&&F.start!=null&&F.end!=null&&(F.type==="StringLiteral"||F.type==="TemplateLiteral"&&F.expressions.length===0)?[F.start,F.end]:null;const N=X(C);if(N)return N;if(C&&C.type==="Identifier"){const F=$.scope.getBinding(C.name);if(F&&F.constant&&F.path.node.type==="VariableDeclarator"){return X(F.path.node.init)}}return null};const M=($,C,X)=>{const N=$.node;let F=false;const w=(K,q)=>{F=true;return z.jsxElement(z.jsxOpeningElement(z.jsxIdentifier("__OmT"),[z.jsxAttribute(z.jsxIdentifier("i"),z.stringLiteral(K))],false),z.jsxClosingElement(z.jsxIdentifier("__OmT")),[q],false)};const D=N.children.map((K)=>{if(K.type==="JSXText"){if(K.start==null||K.end==null)return K;const q=X.slice(K.start,K.end);const R=q.length-q.trimStart().length;const m=q.length-q.trimEnd().length;if(R+m>=q.length)return K;return w(`txt:${C}:${K.start+R}:${K.end-m}`,K)}if(K.type==="JSXExpressionContainer"){const q=b($,K.expression);if(q)return w(`str:${C}:${q[0]}:${q[1]}`,K)}return K});if(F)N.children=D};return{visitor:{JSXOpeningElement($,C){const X=$.node;const N=E(C);const F={};for(let w=0;w<X.attributes.length;w++){const D=X.attributes[w];if(D.type!=="JSXAttribute"||!D.name)continue;const K=D.name.name;if(!L[K])continue;if(!D.value||D.value.type!=="StringLiteral")continue;if(D.value.start==null||D.value.end==null)continue;const q=`txt:${N}:${D.value.start}:${D.value.end}`;F[K]=q;D.value=z.jsxExpressionContainer(_(q,z.stringLiteral(D.value.value)))}if(Object.keys(F).length){X.attributes.push(z.jsxAttribute(z.jsxIdentifier("data-om-text-attrs"),z.stringLiteral(JSON.stringify(F))))}},JSXElement($,C){const X=$.node.openingElement;const N=X&&X.name&&X.name.name;if(N==="__OmT")return;if(typeof N==="string"&&V[N])return;M($,E(C),B(C))},JSXFragment($,C){M($,E(C),B(C))}}}})}}const u=A?["transform-react-jsx-source",G,k]:["transform-react-jsx-source",G];document.querySelectorAll('script[type="text/babel"],script[type="text/jsx"]').forEach((Y,U)=>{const Q=Y.getAttribute("data-plugins")||"";const J=u.filter((W)=>Q.indexOf(W)<0);if(J.length){Y.setAttribute("data-plugins",Q?`${Q},${J.join(",")}`:J.join(","))}if(!Y.hasAttribute("data-filename")){Y.setAttribute("data-filename",Y.getAttribute("src")||`inline-${U}`)}})});var y=window.parent;if(y&&y!==window){const H=(Q,J)=>{try{y.postMessage({__omelette_log:true,type:Q,data:J},"*")}catch{}};["log","warn","error"].forEach((Q)=>{const J=console[Q];console[Q]=(...W)=>{const Z=W.map((z)=>{try{return typeof z==="object"?JSON.stringify(z):String(z)}catch{try{return String(z)}catch{return"[unstringifiable]"}}}).join(" ");H(Q,Z);J.apply(console,W)}});window.addEventListener("error",(Q)=>{const J=Q.target;if(J&&J!==window&&J.tagName){const W=J.src||J.href||"";H("resource_error",`${J.tagName} failed to load: ${W}`)}else{H("error",`${Q.message||"Unknown error"} at ${Q.filename||"?"}:${Q.lineno||0}:${Q.colno||0}`)}},true);window.addEventListener("unhandledrejection",(Q)=>{const J=Q.reason;const W=J instanceof Error?`${J.message} ${J.stack}`:String(J);H("error",`Unhandled rejection: ${W}`)});const G=()=>{try{y.postMessage({type:"omelette:height",height:document.documentElement.scrollHeight},"*")}catch{}};if(document.readyState==="complete")G();else window.addEventListener("load",G);if(window.ResizeObserver)new ResizeObserver(G).observe(document.documentElement);const k={};let A=0;window.claude={complete(Q){return new Promise((J,W)=>{if(!j.length){W(new Error("claude.complete: no parent origin"));return}const Z=`c${++A}`;const z=()=>setTimeout(()=>{delete k[Z];W(new Error(`claude.complete: no data for ${S/1000}s`))},S);const V=z();k[Z]={resolve:J,reject:W,text:"",t:V,arm:z};try{for(const L of j){y.postMessage({__om_api:true,id:Z,body:Q},L)}}catch(L){clearTimeout(V);delete k[Z];W(L)}})}};const u={};let Y=0;window.omelette={writeFile:(Q,J)=>new Promise((W,Z)=>{if(!j.length){W();return}const z=`f${++Y}`;const V=setTimeout(()=>{delete u[z];W()},f);u[z]={resolve:W,reject:Z,t:V};try{for(const L of j){y.postMessage({__om_file:true,id:z,op:"write",path:Q,content:J},L)}}catch{clearTimeout(V);delete u[z];W()}})};const U=(Q)=>{try{return JSON.stringify(Q)}catch{return JSON.stringify(String(Q))}};window.addEventListener("message",(Q)=>{if(j.indexOf(Q.origin)<0)return;if(Q.source!==y)return;const J=Q.data;if(!J)return;if(J.type==="omelette-preview-refresh"){if(typeof J.token!=="string"||!/^[0-9a-f.-]+(\.(rc|pr-[0-9]+))?(\.[0-9]+\.[0-9a-f]{16})?$/.test(J.token))return;const z=Math.max(1,Math.floor((J.expiresAt||0)-Date.now()/1000));document.cookie="__Host-omelette-preview="+J.token+"; Path=/; Secure; SameSite=None; Partitioned; Max-Age="+z;return}if(J.__om_file_r){const z=u[J.id];if(!z)return;clearTimeout(z.t);delete u[J.id];if(J.ok)z.resolve();else z.reject(new Error(J.error||"write failed"));return}if(J.__om_api_r){const z=k[J.id];if(!z)return;if(J.error!=null){clearTimeout(z.t);delete k[J.id];z.reject(new Error(J.error));return}if(J.chunk!=null){clearTimeout(z.t);z.t=z.arm();z.text+=J.chunk;return}if(J.done){clearTimeout(z.t);delete k[J.id];z.resolve(J.text!=null?J.text:z.text);return}return}if(!J.__om_eval)return;const W=J;const Z=(z)=>{Q.source.postMessage({...z,__om_eval_r:1,id:W.id},Q.origin)};try{const z=(0,eval)(W.code);if(z&&typeof z.then==="function"){z.then((V)=>Z({ok:1,v:U(V)}),(V)=>Z({ok:0,e:String(V)}))}else{Z({ok:1,v:U(z)})}}catch(z){Z({ok:0,e:String(z)})}})}})();
 </script>
 
-<meta charset="UTF-8" data-om-id="bc01f935:2">
+<meta charset="UTF-8" data-om-id="d61f444e:2">
 <title>NOCTABLOB · Steam Library</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" data-om-id="bc01f935:3">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin data-om-id="bc01f935:4">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" data-om-id="bc01f935:5">
+<link rel="preconnect" href="https://fonts.googleapis.com" data-om-id="d61f444e:3">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin data-om-id="d61f444e:4">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" data-om-id="d61f444e:5">
 <style>
   :root{
     --bg:#0e0e10; --grid:#17171b;
@@ -25,12 +25,10 @@
 
   /* colonne docquée gauche ~30% */
   #panel{
-    position:absolute;top:0;left:0;bottom:0;width:1150px;
-    background:rgba(14,14,16,0.82);
-    background-image:radial-gradient(circle, var(--grid) 2px, transparent 2px);
-    background-size:34px 34px;
-    border-right:2px solid var(--line);
-    padding:96px 90px 84px;
+    position:absolute;top:5%;bottom:5%;left:5%;width:1150px;
+    background:rgba(13,13,15,0.96);
+    border:2px solid var(--line);
+    padding:64px 60px 56px;
     display:flex;flex-direction:column;
   }
   /* ticks de repérage dans les coins du panneau */
@@ -44,63 +42,69 @@
   .tick.br{bottom:34px;right:34px;}  .tick.br::before{bottom:0;right:0;} .tick.br::after{bottom:0;right:0;}
 
   /* en-tête */
-  .kicker{font-size:30px;font-weight:400;color:var(--g3);letter-spacing:2px;}
-  .title{font-size:78px;font-weight:600;color:var(--spec);letter-spacing:1px;line-height:1;margin:18px 0 0;}
-  .subtitle{font-size:28px;font-weight:400;color:var(--g2);margin:20px 0 0;}
+  .kicker{font-size:26px;font-weight:400;color:var(--g3);letter-spacing:2px;}
+  .title{font-size:58px;font-weight:600;color:var(--spec);letter-spacing:1px;line-height:1;margin:14px 0 0;}
+  .subtitle{font-size:24px;font-weight:400;color:var(--g2);margin:16px 0 0;}
 
   /* règle de mesure sous l'en-tête */
-  .ruler{position:relative;height:30px;margin:40px 0 6px;}
-  .ruler .bar{position:absolute;top:14px;left:0;right:0;height:2px;background:rgba(240,240,238,0.16);}
-  .ruler .cap{position:absolute;top:0;width:2px;height:30px;background:rgba(240,240,238,0.16);}
+  .ruler{position:relative;height:24px;margin:30px 0 4px;}
+  .ruler .bar{position:absolute;top:11px;left:0;right:0;height:2px;background:rgba(240,240,238,0.16);}
+  .ruler .cap{position:absolute;top:0;width:2px;height:24px;background:rgba(240,240,238,0.16);}
   .ruler .cap.l{left:0;} .ruler .cap.r{right:0;}
-  .ruler .lab{position:absolute;top:-4px;right:0;font-size:22px;color:var(--g3);}
+  .ruler .lab{position:absolute;top:-2px;right:0;font-size:20px;color:var(--g3);}
 
   /* liste */
   #backlog{
-    position:relative;flex:1;min-height:0;margin-top:30px;
-    display:flex;flex-direction:column;gap:46px;
+    position:relative;flex:1;min-height:0;margin-top:26px;
+    display:grid;grid-template-rows:repeat(10, min-content);grid-auto-flow:column;grid-auto-columns:1fr;
+    column-gap:54px;row-gap:32px;align-content:start;
     overflow:hidden;
-    -webkit-mask-image:linear-gradient(to bottom, #000 calc(100% - 90px), transparent);
-            mask-image:linear-gradient(to bottom, #000 calc(100% - 90px), transparent);
+    -webkit-mask-image:linear-gradient(to bottom, #000 calc(100% - 70px), transparent);
+            mask-image:linear-gradient(to bottom, #000 calc(100% - 70px), transparent);
   }
-  .game-block{display:flex;flex-direction:column;gap:16px;}
-  .g-head{display:flex;align-items:baseline;gap:20px;min-width:0;}
-  .g-idx{font-size:26px;font-weight:400;color:var(--g4);flex:none;letter-spacing:1px;}
-  .game-title{font-size:38px;font-weight:600;color:var(--spec);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .g-bar{display:block;width:100%;height:20px;}
-  .game-info{display:flex;justify-content:space-between;align-items:baseline;font-size:26px;}
+  .game-block{display:flex;flex-direction:column;gap:11px;min-width:0;}
+  .g-head{display:flex;align-items:baseline;gap:14px;min-width:0;}
+  .g-idx{font-size:19px;font-weight:400;color:var(--g4);flex:none;letter-spacing:1px;}
+  .game-title{font-size:25px;font-weight:600;color:var(--spec);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .g-bar{display:block;width:100%;height:14px;}
+  .game-info{display:flex;justify-content:space-between;align-items:baseline;font-size:19px;}
   .game-info .pc{color:var(--g1);font-weight:500;}
   .game-info .ct{color:var(--g3);}
+  /* état dormant : jeu jamais entamé */
+  .game-block.dormant .game-title{color:var(--g2);font-weight:500;}
+  .game-block.dormant .g-idx{color:#34343a;}
+  .game-block.dormant .game-info .pc{color:var(--g3);font-weight:400;letter-spacing:1px;}
+  .game-block.dormant .game-info .ct{color:#4a4a51;}
 
-  .state{font-size:30px;color:var(--g2);line-height:1.5;}
+  .state{grid-column:1 / -1;font-size:26px;color:var(--g2);line-height:1.5;}
   .state.err{color:#c9c9c4;}
 
   /* pied */
-  .foot{display:flex;align-items:center;justify-content:space-between;margin-top:34px;font-size:26px;color:var(--g4);letter-spacing:1px;}
-  .caret{display:inline-block;width:18px;height:30px;background:var(--g3);margin-left:6px;animation:blink 1.1s steps(1) infinite;vertical-align:-4px;}
+  .foot{display:flex;align-items:center;justify-content:space-between;margin-top:24px;font-size:22px;color:var(--g4);letter-spacing:1px;}
+  .caret{display:inline-block;width:14px;height:24px;background:var(--g3);margin-left:6px;animation:blink 1.1s steps(1) infinite;vertical-align:-3px;}
   @keyframes blink{50%{opacity:0;}}
 </style>
 </head>
-<body data-om-id="bc01f935:6">
+<body data-om-id="d61f444e:6">
 
-<div id="stage" data-om-id="bc01f935:7">
-  <div id="panel" data-om-id="bc01f935:8">
-    <span class="tick tl" data-om-id="bc01f935:9"></span><span class="tick tr" data-om-id="bc01f935:10"></span>
-    <span class="tick bl" data-om-id="bc01f935:11"></span><span class="tick br" data-om-id="bc01f935:12"></span>
+<div id="stage" data-om-id="d61f444e:7">
+  <div id="panel" data-om-id="d61f444e:8">
+    <span class="tick tl" data-om-id="d61f444e:9"></span><span class="tick tr" data-om-id="d61f444e:10"></span>
+    <span class="tick bl" data-om-id="d61f444e:11"></span><span class="tick br" data-om-id="d61f444e:12"></span>
 
-    <div class="kicker" data-om-id="bc01f935:13">// FIG.07 · library.backlog</div>
-    <h1 class="title" data-om-id="bc01f935:14">BIBLIOTHÈQUE</h1>
-    <div class="subtitle" data-om-id="bc01f935:15">specimens en cours d'isolement</div>
+    <div class="kicker" data-om-id="d61f444e:13">// FIG.07 · library.backlog</div>
+    <h1 class="title" data-om-id="d61f444e:14">BIBLIOTHÈQUE</h1>
+    <div class="subtitle" data-om-id="d61f444e:15">specimens en cours d'isolement</div>
 
-    <div class="ruler" data-om-id="bc01f935:16"><span class="cap l" data-om-id="bc01f935:17"></span><span class="bar" data-om-id="bc01f935:18"></span><span class="cap r" data-om-id="bc01f935:19"></span><span class="lab" data-om-id="bc01f935:20">µm</span></div>
+    <div class="ruler" data-om-id="d61f444e:16"><span class="cap l" data-om-id="d61f444e:17"></span><span class="bar" data-om-id="d61f444e:18"></span><span class="cap r" data-om-id="d61f444e:19"></span><span class="lab" data-om-id="d61f444e:20">µm</span></div>
 
-    <div id="backlog" data-om-id="bc01f935:21">
-      <div class="state" data-om-id="bc01f935:22">initialisation du protocole...</div>
+    <div id="backlog" data-om-id="d61f444e:21">
+      <div class="state" data-om-id="d61f444e:22">initialisation du protocole...</div>
     </div>
 
-    <div class="foot" data-om-id="bc01f935:23">
-      <span id="foot-count" data-om-id="bc01f935:24">// noctablob.lab</span>
-      <span data-om-id="bc01f935:25"><span class="caret" data-om-id="bc01f935:26"></span></span>
+    <div class="foot" data-om-id="d61f444e:23">
+      <span id="foot-count" data-om-id="d61f444e:24">// noctablob.lab</span>
+      <span data-om-id="d61f444e:25"><span class="caret" data-om-id="d61f444e:26"></span></span>
     </div>
   </div>
 </div>
@@ -163,16 +167,19 @@
 
       jeux.forEach((jeu, i) => {
         const block = document.createElement('div');
-        block.className = 'game-block';
+        const pct = jeu.percent || 0;
+        const dormant = pct === 0;
+        block.className = 'game-block' + (dormant ? ' dormant' : '');
         const idx = String(i + 1).padStart(2, '0');
+        const pcLabel = dormant ? 'dormant' : `${jeu.percent}% analysé`;
         block.innerHTML = `
           <div class="g-head">
             <span class="g-idx">07·${idx}</span>
             <span class="game-title">${jeu.gameName}</span>
           </div>
-          <canvas class="g-bar" data-pct="${(jeu.percent || 0) / 100}"></canvas>
+          <canvas class="g-bar" data-pct="${pct / 100}"></canvas>
           <div class="game-info">
-            <span class="pc">${jeu.percent}% analysé</span>
+            <span class="pc">${pcLabel}</span>
             <span class="ct">${jeu.unlocked} / ${jeu.total} specimens</span>
           </div>
         `;
@@ -192,4 +199,4 @@
 </script>
 </body>
 </html>
-<script type="application/json" id="__om_srcmap">{"gen":"bc01f935","entries":[{"id":"bc01f935:0","tag":"html","openStart":16,"attrEnd":31,"openEnd":32,"closeStart":8676,"closeEnd":8683,"textRuns":[[32,33],[4006,4007],[8675,8676]],"parentId":null,"childIds":["bc01f935:1","bc01f935:6"]},{"id":"bc01f935:1","tag":"head","openStart":33,"attrEnd":38,"openEnd":39,"closeStart":3999,"closeEnd":4006,"textRuns":[[39,40],[62,63],[104,105],[164,165],[233,234],[349,350],[3998,3999]],"parentId":"bc01f935:0","childIds":["bc01f935:2","bc01f935:3","bc01f935:4","bc01f935:5"]},{"id":"bc01f935:2","tag":"meta","openStart":40,"attrEnd":61,"openEnd":62,"closeEnd":62,"textRuns":[],"parentId":"bc01f935:1","childIds":[]},{"id":"bc01f935:3","tag":"link","openStart":105,"attrEnd":163,"openEnd":164,"closeEnd":164,"textRuns":[],"parentId":"bc01f935:1","childIds":[]},{"id":"bc01f935:4","tag":"link","openStart":165,"attrEnd":232,"openEnd":233,"closeEnd":233,"textRuns":[],"parentId":"bc01f935:1","childIds":[]},{"id":"bc01f935:5","tag":"link","openStart":234,"attrEnd":348,"openEnd":349,"closeEnd":349,"textRuns":[],"parentId":"bc01f935:1","childIds":[]},{"id":"bc01f935:6","tag":"body","openStart":4007,"attrEnd":4012,"openEnd":4013,"closeStart":8668,"closeEnd":8675,"textRuns":[[4013,4015],[4725,4727],[8667,8668]],"parentId":"bc01f935:0","childIds":["bc01f935:7"]},{"id":"bc01f935:7","tag":"div","openStart":4015,"attrEnd":4030,"openEnd":4031,"closeStart":4719,"closeEnd":4725,"textRuns":[[4031,4034],[4718,4719]],"parentId":"bc01f935:6","childIds":["bc01f935:8"]},{"id":"bc01f935:8","tag":"div","openStart":4034,"attrEnd":4049,"openEnd":4050,"closeStart":4712,"closeEnd":4718,"textRuns":[[4050,4055],[4113,4118],[4176,4182],[4236,4241],[4277,4282],[4340,4346],[4478,4484],[4575,4581],[4709,4712]],"parentId":"bc01f935:7","childIds":["bc01f935:9","bc01f935:10","bc01f935:11","bc01f935:12","bc01f935:13","bc01f935:14","bc01f935:15","bc01f935:16","bc01f935:21","bc01f935:23"]},{"id":"bc01f935:9","tag":"span","openStart":4055,"attrEnd":4076,"openEnd":4077,"closeStart":4077,"closeEnd":4084,"textRuns":[],"parentId":"bc01f935:8","childIds":[]},{"id":"bc01f935:10","tag":"span","openStart":4084,"attrEnd":4105,"openEnd":4106,"closeStart":4106,"closeEnd":4113,"textRuns":[],"parentId":"bc01f935:8","childIds":[]},{"id":"bc01f935:11","tag":"span","openStart":4118,"attrEnd":4139,"openEnd":4140,"closeStart":4140,"closeEnd":4147,"textRuns":[],"parentId":"bc01f935:8","childIds":[]},{"id":"bc01f935:12","tag":"span","openStart":4147,"attrEnd":4168,"openEnd":4169,"closeStart":4169,"closeEnd":4176,"textRuns":[],"parentId":"bc01f935:8","childIds":[]},{"id":"bc01f935:13","tag":"div","openStart":4182,"attrEnd":4201,"openEnd":4202,"closeStart":4230,"closeEnd":4236,"textRuns":[[4202,4230]],"parentId":"bc01f935:8","childIds":[]},{"id":"bc01f935:14","tag":"h1","openStart":4241,"attrEnd":4258,"openEnd":4259,"closeStart":4272,"closeEnd":4277,"textRuns":[[4259,4272]],"parentId":"bc01f935:8","childIds":[]},{"id":"bc01f935:15","tag":"div","openStart":4282,"attrEnd":4303,"openEnd":4304,"closeStart":4334,"closeEnd":4340,"textRuns":[[4304,4334]],"parentId":"bc01f935:8","childIds":[]},{"id":"bc01f935:16","tag":"div","openStart":4346,"attrEnd":4364,"openEnd":4365,"closeStart":4472,"closeEnd":4478,"textRuns":[],"parentId":"bc01f935:8","childIds":["bc01f935:17","bc01f935:18","bc01f935:19","bc01f935:20"]},{"id":"bc01f935:17","tag":"span","openStart":4365,"attrEnd":4384,"openEnd":4385,"closeStart":4385,"closeEnd":4392,"textRuns":[],"parentId":"bc01f935:16","childIds":[]},{"id":"bc01f935:18","tag":"span","openStart":4392,"attrEnd":4409,"openEnd":4410,"closeStart":4410,"closeEnd":4417,"textRuns":[],"parentId":"bc01f935:16","childIds":[]},{"id":"bc01f935:19","tag":"span","openStart":4417,"attrEnd":4436,"openEnd":4437,"closeStart":4437,"closeEnd":4444,"textRuns":[],"parentId":"bc01f935:16","childIds":[]},{"id":"bc01f935:20","tag":"span","openStart":4444,"attrEnd":4461,"openEnd":4462,"closeStart":4465,"closeEnd":4472,"textRuns":[[4462,4465]],"parentId":"bc01f935:16","childIds":[]},{"id":"bc01f935:21","tag":"div","openStart":4484,"attrEnd":4501,"openEnd":4502,"closeStart":4569,"closeEnd":4575,"textRuns":[[4502,4509],[4564,4569]],"parentId":"bc01f935:8","childIds":["bc01f935:22"]},{"id":"bc01f935:22","tag":"div","openStart":4509,"attrEnd":4527,"openEnd":4528,"closeStart":4558,"closeEnd":4564,"textRuns":[[4528,4558]],"parentId":"bc01f935:21","childIds":[]},{"id":"bc01f935:23","tag":"div","openStart":4581,"attrEnd":4598,"openEnd":4599,"closeStart":4703,"closeEnd":4709,"textRuns":[[4599,4606],[4651,4658],[4698,4703]],"parentId":"bc01f935:8","childIds":["bc01f935:24","bc01f935:25"]},{"id":"bc01f935:24","tag":"span","openStart":4606,"attrEnd":4627,"openEnd":4628,"closeStart":4644,"closeEnd":4651,"textRuns":[[4628,4644]],"parentId":"bc01f935:23","childIds":[]},{"id":"bc01f935:25","tag":"span","openStart":4658,"attrEnd":4663,"openEnd":4664,"closeStart":4691,"closeEnd":4698,"textRuns":[],"parentId":"bc01f935:23","childIds":["bc01f935:26"]},{"id":"bc01f935:26","tag":"span","openStart":4664,"attrEnd":4683,"openEnd":4684,"closeStart":4684,"closeEnd":4691,"textRuns":[],"parentId":"bc01f935:25","childIds":[]}],"literals":[[5129,5135],[5357,5359],[5509,5531],[6072,6079],[6420,6491],[6541,6574],[6597,6625],[6699,6740],[6832,6896],[6963,6970],[7021,7106],[7164,7164],[7230,7308],[7344,7354],[7370,7386],[7493,7496],[7527,7537],[7587,7588],[7619,7687],[7693,7738],[7753,7820],[7847,7922],[7936,7983],[7998,8001],[8013,8056],[8138,8148],[8164,8167],[8181,8200],[8222,8267],[8310,8350],[8396,8403],[8427,8517],[8551,8561],[8577,8593]]}</script>
+<script type="application/json" id="__om_srcmap">{"gen":"d61f444e","entries":[{"id":"d61f444e:0","tag":"html","openStart":16,"attrEnd":31,"openEnd":32,"closeStart":9150,"closeEnd":9157,"textRuns":[[32,33],[4332,4333],[9149,9150]],"parentId":null,"childIds":["d61f444e:1","d61f444e:6"]},{"id":"d61f444e:1","tag":"head","openStart":33,"attrEnd":38,"openEnd":39,"closeStart":4325,"closeEnd":4332,"textRuns":[[39,40],[62,63],[104,105],[164,165],[233,234],[349,350],[4324,4325]],"parentId":"d61f444e:0","childIds":["d61f444e:2","d61f444e:3","d61f444e:4","d61f444e:5"]},{"id":"d61f444e:2","tag":"meta","openStart":40,"attrEnd":61,"openEnd":62,"closeEnd":62,"textRuns":[],"parentId":"d61f444e:1","childIds":[]},{"id":"d61f444e:3","tag":"link","openStart":105,"attrEnd":163,"openEnd":164,"closeEnd":164,"textRuns":[],"parentId":"d61f444e:1","childIds":[]},{"id":"d61f444e:4","tag":"link","openStart":165,"attrEnd":232,"openEnd":233,"closeEnd":233,"textRuns":[],"parentId":"d61f444e:1","childIds":[]},{"id":"d61f444e:5","tag":"link","openStart":234,"attrEnd":348,"openEnd":349,"closeEnd":349,"textRuns":[],"parentId":"d61f444e:1","childIds":[]},{"id":"d61f444e:6","tag":"body","openStart":4333,"attrEnd":4338,"openEnd":4339,"closeStart":9142,"closeEnd":9149,"textRuns":[[4339,4341],[5051,5053],[9141,9142]],"parentId":"d61f444e:0","childIds":["d61f444e:7"]},{"id":"d61f444e:7","tag":"div","openStart":4341,"attrEnd":4356,"openEnd":4357,"closeStart":5045,"closeEnd":5051,"textRuns":[[4357,4360],[5044,5045]],"parentId":"d61f444e:6","childIds":["d61f444e:8"]},{"id":"d61f444e:8","tag":"div","openStart":4360,"attrEnd":4375,"openEnd":4376,"closeStart":5038,"closeEnd":5044,"textRuns":[[4376,4381],[4439,4444],[4502,4508],[4562,4567],[4603,4608],[4666,4672],[4804,4810],[4901,4907],[5035,5038]],"parentId":"d61f444e:7","childIds":["d61f444e:9","d61f444e:10","d61f444e:11","d61f444e:12","d61f444e:13","d61f444e:14","d61f444e:15","d61f444e:16","d61f444e:21","d61f444e:23"]},{"id":"d61f444e:9","tag":"span","openStart":4381,"attrEnd":4402,"openEnd":4403,"closeStart":4403,"closeEnd":4410,"textRuns":[],"parentId":"d61f444e:8","childIds":[]},{"id":"d61f444e:10","tag":"span","openStart":4410,"attrEnd":4431,"openEnd":4432,"closeStart":4432,"closeEnd":4439,"textRuns":[],"parentId":"d61f444e:8","childIds":[]},{"id":"d61f444e:11","tag":"span","openStart":4444,"attrEnd":4465,"openEnd":4466,"closeStart":4466,"closeEnd":4473,"textRuns":[],"parentId":"d61f444e:8","childIds":[]},{"id":"d61f444e:12","tag":"span","openStart":4473,"attrEnd":4494,"openEnd":4495,"closeStart":4495,"closeEnd":4502,"textRuns":[],"parentId":"d61f444e:8","childIds":[]},{"id":"d61f444e:13","tag":"div","openStart":4508,"attrEnd":4527,"openEnd":4528,"closeStart":4556,"closeEnd":4562,"textRuns":[[4528,4556]],"parentId":"d61f444e:8","childIds":[]},{"id":"d61f444e:14","tag":"h1","openStart":4567,"attrEnd":4584,"openEnd":4585,"closeStart":4598,"closeEnd":4603,"textRuns":[[4585,4598]],"parentId":"d61f444e:8","childIds":[]},{"id":"d61f444e:15","tag":"div","openStart":4608,"attrEnd":4629,"openEnd":4630,"closeStart":4660,"closeEnd":4666,"textRuns":[[4630,4660]],"parentId":"d61f444e:8","childIds":[]},{"id":"d61f444e:16","tag":"div","openStart":4672,"attrEnd":4690,"openEnd":4691,"closeStart":4798,"closeEnd":4804,"textRuns":[],"parentId":"d61f444e:8","childIds":["d61f444e:17","d61f444e:18","d61f444e:19","d61f444e:20"]},{"id":"d61f444e:17","tag":"span","openStart":4691,"attrEnd":4710,"openEnd":4711,"closeStart":4711,"closeEnd":4718,"textRuns":[],"parentId":"d61f444e:16","childIds":[]},{"id":"d61f444e:18","tag":"span","openStart":4718,"attrEnd":4735,"openEnd":4736,"closeStart":4736,"closeEnd":4743,"textRuns":[],"parentId":"d61f444e:16","childIds":[]},{"id":"d61f444e:19","tag":"span","openStart":4743,"attrEnd":4762,"openEnd":4763,"closeStart":4763,"closeEnd":4770,"textRuns":[],"parentId":"d61f444e:16","childIds":[]},{"id":"d61f444e:20","tag":"span","openStart":4770,"attrEnd":4787,"openEnd":4788,"closeStart":4791,"closeEnd":4798,"textRuns":[[4788,4791]],"parentId":"d61f444e:16","childIds":[]},{"id":"d61f444e:21","tag":"div","openStart":4810,"attrEnd":4827,"openEnd":4828,"closeStart":4895,"closeEnd":4901,"textRuns":[[4828,4835],[4890,4895]],"parentId":"d61f444e:8","childIds":["d61f444e:22"]},{"id":"d61f444e:22","tag":"div","openStart":4835,"attrEnd":4853,"openEnd":4854,"closeStart":4884,"closeEnd":4890,"textRuns":[[4854,4884]],"parentId":"d61f444e:21","childIds":[]},{"id":"d61f444e:23","tag":"div","openStart":4907,"attrEnd":4924,"openEnd":4925,"closeStart":5029,"closeEnd":5035,"textRuns":[[4925,4932],[4977,4984],[5024,5029]],"parentId":"d61f444e:8","childIds":["d61f444e:24","d61f444e:25"]},{"id":"d61f444e:24","tag":"span","openStart":4932,"attrEnd":4953,"openEnd":4954,"closeStart":4970,"closeEnd":4977,"textRuns":[[4954,4970]],"parentId":"d61f444e:23","childIds":[]},{"id":"d61f444e:25","tag":"span","openStart":4984,"attrEnd":4989,"openEnd":4990,"closeStart":5017,"closeEnd":5024,"textRuns":[],"parentId":"d61f444e:23","childIds":["d61f444e:26"]},{"id":"d61f444e:26","tag":"span","openStart":4990,"attrEnd":5009,"openEnd":5010,"closeStart":5010,"closeEnd":5017,"textRuns":[],"parentId":"d61f444e:25","childIds":[]}],"literals":[[5455,5461],[5683,5685],[5835,5857],[6398,6405],[6746,6817],[6867,6900],[6923,6951],[7025,7066],[7158,7222],[7289,7296],[7347,7432],[7490,7490],[7556,7634],[7670,7680],[7696,7712],[7819,7822],[7926,7936],[7952,7960],[7965,7965],[8016,8017],[8056,8063],[8082,8092],[8122,8190],[8196,8241],[8256,8323],[8335,8410],[8420,8457],[8472,8475],[8487,8530],[8612,8622],[8638,8641],[8655,8674],[8696,8741],[8784,8824],[8870,8877],[8901,8991],[9025,9035],[9051,9067]]}</script>
