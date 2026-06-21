@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  steam-api:
+    # REMPLACEZ par l'adresse de votre Container Registry GitLab
+    image: ghcr.io/noctablob/steam-tracker:latest
+    container_name: steam-api-server
+    ports:
+      - "3000:3000"
+    environment:
+      - STEAM_API_KEY=VOTRE_VRAIE_CLE_API_STEAM_ICI
+      - STEAM_ID=VOTRE_STEAM_ID_64_ICI
+    restart: unless-stopped
+
+  steam-ui:
+    image: nginx:alpine
+    container_name: steam-api-ui
+    ports:
+      - "8080:80"
+    volumes:
+      - ./index.html:/usr/share/nginx/html/index.html:ro
+    restart: unless-stopped

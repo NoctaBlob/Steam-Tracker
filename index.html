@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+            background: transparent;
+            margin: 0;
+            padding: 10px;
+        }
+        #tracker {
+            background: rgba(20, 20, 20, 0.85);
+            border-radius: 12px;
+            padding: 15px;
+            width: 320px;
+            border: 2px solid #553c9a; /* Style violet thématique */
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        h2 { margin: 0 0 8px 0; font-size: 16px; color: #a3b8cc; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+        .progress-bar {
+            background: #2d3748;
+            height: 12px;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+        .progress-fill {
+            background: linear-gradient(90deg, #553c9a, #b572e3);
+            height: 100%;
+            width: 0%;
+            transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        #stats { font-size: 13px; color: #cbd5e0; font-weight: bold; text-align: right; }
+    </style>
+</head>
+<body>
+
+<div id="tracker">
+    <h2 id="game-name">Vérification de Steam...</h2>
+    <div class="progress-bar"><div id="bar" class="progress-fill"></div></div>
+    <div id="stats">- / - (0%)</div>
+</div>
+
+<script>
+    async function updateTracker() {
+        try {
+            const response = await fetch('http://localhost:3000/api/achievements');
+            const data = await response.json();
+
+            if (data.playing) {
+                document.getElementById('game-name').innerText = data.gameName;
+                
+                const total = data.achievements.length;
+                const unlocked = data.achievements.filter(a => a.achieved).length;
+                const percent = total > 0 ? (unlocked / total) * 100 : 0;
+
+                document.getElementById('bar').style.width = percent + '%';
+                document.getElementById('stats').innerText = `${unlocked} / ${total} (${Math.round(percent)}%)`;
+            } else {
+                document.getElementById('game-name').innerText = "Aucun jeu détecté";
+                document.getElementById('bar').style.width = '0%';
+                document.getElementById('stats').innerText = "En attente";
+            }
+        } catch (e) {
+            document.getElementById('game-name').innerText = "Connexion API perdue";
+        }
+    }
+
+    setInterval(updateTracker, 10000);
+    updateTracker();
+</script>
+</body>
+</html>
