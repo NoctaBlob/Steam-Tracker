@@ -1,13 +1,17 @@
 services:
   steam-api:
-    # REMPLACEZ par l'adresse de votre Container Registry GitLab
     image: ghcr.io/noctablob/steam-tracker:latest
     container_name: steam-api-server
+    pull_policy: build
     ports:
       - "3000:3000"
     environment:
       - STEAM_API_KEY=${STEAM_API_KEY}
       - STEAM_ID=${STEAM_ID}
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    command: node --watch server.js
     restart: unless-stopped
 
   steam-ui:
@@ -16,6 +20,5 @@ services:
     ports:
       - "8080:80"
     volumes:
-      # On monte tout ton dossier de dev actuel (.) dans le dossier HTML de Nginx
       - .:/usr/share/nginx/html:ro
     restart: unless-stopped

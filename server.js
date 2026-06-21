@@ -7,7 +7,7 @@ const PORT = 3000;
 const STEAM_API_KEY = process.env.STEAM_API_KEY;
 const STEAM_ID = process.env.STEAM_ID; 
 
-// Centralisation de la configuration : AppID -> Nom propre
+// Configuration unique : AppID -> Nom propre
 const JEUX_DU_MOMENT = {
     "289650": "Assassin's Creed Unity",
     "812140": "Assassin's Creed Odyssey",
@@ -37,27 +37,19 @@ app.get('/api/achievements', async (req, res) => {
     console.log(`\n[ROUTE] Requête reçue sur /api/achievements`);
     try {
         if (!STEAM_API_KEY || !STEAM_ID) {
-            console.error("[ERROR] Clé API ou SteamID manquant dans les variables d'environnement.");
             return res.status(500).json({ error: "Variables manquantes." });
         }
 
-        console.log(`[STEAM API] Récupération du statut du joueur pour le SteamID: ${STEAM_ID}`);
         const playerSummary = await axios.get(`http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAM_API_KEY}&steamids=${STEAM_ID}`);
         const player = playerSummary.data.response.players[0];
         
-        if (!player) {
-            console.warn("[WARN] Aucun joueur trouvé avec ce SteamID.");
-            return res.status(404).json({ error: "Joueur introuvable." });
-        }
-
+        if (!player) return res.status(404).json({ error: "Joueur introuvable." });
         const gameId = player.gameid;
 
         if (!gameId) {
-            console.log("[INFO] Statut récupéré : Le joueur ne joue à aucun jeu actuellement.");
             return res.json({ playing: false, message: "Aucun jeu Steam en cours." });
         }
 
-        console.log(`[STEAM API] Joueur détecté en jeu ! AppID: ${gameId}. Récupération des succès et du schéma...`);
         const playerAchievements = await axios.get(`http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?appid=${gameId}&key=${STEAM_API_KEY}&steamid=${STEAM_ID}`);
         const gameSchema = await axios.get(`http://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v0002/?key=${STEAM_API_KEY}&appid=${gameId}&l=french`);
 
@@ -73,10 +65,12 @@ app.get('/api/achievements', async (req, res) => {
             };
         });
 
-        console.log(`[SUCCESS] Données compilées pour le jeu : ${gameSchema.data.game.gameName} (${fullAchievements.length} succès trouvés)`);
+        // Application du nom personnalisé si le jeu en cours est dans notre dictionnaire
+        const gameName = JEUX_DU_MOMENT[gameId] || gameSchema.data.game.gameName;
+
         res.json({
             playing: true,
-            gameName: gameSchema.data.game.gameName,
+            gameName: gameName,
             gameId: gameId,
             achievements: fullAchievements
         });
@@ -87,7 +81,7 @@ app.get('/api/achievements', async (req, res) => {
     }
 });
 
-// ROUTE 2 : Pour ton avancée globale (steam-library.html)
+// ROUTE 2 : Pour ton avancée globale (Steam-Library.html)
 app.get('/api/library', async (req, res) => {
     console.log(`\n[ROUTE] Requête reçue sur /api/library`);
     try {
@@ -97,7 +91,6 @@ app.get('/api/library', async (req, res) => {
         }
 
         let libraryData = [];
-        // Object.keys() permet de récupérer uniquement les AppIDs pour boucler dessus
         const appIds = Object.keys(JEUX_DU_MOMENT);
         console.log(`[INFO] Début de la boucle sur les ${appIds.length} jeux...`);
 
@@ -105,7 +98,6 @@ app.get('/api/library', async (req, res) => {
             const customName = JEUX_DU_MOMENT[appId];
             try {
                 console.log(`[STEAM API] Traitement AppID ${appId} (${customName})...`);
-                
                 const stats = await axios.get(`http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?appid=${appId}&key=${STEAM_API_KEY}&steamid=${STEAM_ID}`);
                 
                 if (stats.data && stats.data.playerstats && stats.data.playerstats.achievements) {
@@ -123,9 +115,7 @@ app.get('/api/library', async (req, res) => {
                     });
                 }
             } catch (e) {
-                // Mode secours : Si le jeu n'est pas initialisé ou plante, on utilise direct notre nom custom
                 console.warn(`   -> [WARN] Impossible de fetch l'AppID ${appId}. Mode secours activé pour ${customName}.`);
-                
                 libraryData.push({
                     gameName: customName,
                     gameId: appId,
@@ -136,11 +126,10 @@ app.get('/api/library', async (req, res) => {
             }
         }
 
-        // Tri alphabétique
+        // Tri alphabétique sur les noms propres
         libraryData.sort((a, b) => a.gameName.localeCompare(b.gameName));
         console.log("[INFO] Tri alphabétique appliqué.");
 
-        console.log(`[SUCCESS] Envoi des données (${libraryData.length} jeux chargés)`);
         res.json(libraryData);
     } catch (error) {
         console.error(`[ERROR] Erreur critique sur /api/library : ${error.message}`);
