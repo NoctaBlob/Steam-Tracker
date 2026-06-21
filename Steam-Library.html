@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Steam Library Tracker</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; color: white; background: transparent; padding: 20px; }
+        .backlog-container { display: flex; flex-direction: column; gap: 20px; width: 400px; background: rgba(20, 20, 20, 0.85); padding: 20px; border-radius: 12px; border: 2px solid #553c9a; }
+        .game-block { display: flex; flex-direction: column; gap: 5px; }
+        .game-title { font-size: 14px; font-weight: bold; color: #a3b8cc; }
+        .bar-bg { background: #2d3748; height: 10px; border-radius: 5px; overflow: hidden; }
+        .bar-fill { background: linear-gradient(90deg, #553c9a, #b572e3); height: 100%; width: 0%; transition: width 1s ease; }
+        .game-info { display: flex; justify-content: space-between; font-size: 12px; color: #cbd5e0; }
+    </style>
+</head>
+<body>
+
+<div class="backlog-container" id="backlog">
+    <div style="color: #aaa; font-size: 14px;">Initialisation du script...</div>
+</div>
+
+<script>
+    async function loadBacklog() {
+        console.log("[FRONT] Tentative de récupération de la bibliothèque depuis l'API...");
+        try {
+            const response = await fetch('http://localhost:3000/api/library');
+            console.log(`[FRONT] Statut HTTP reçu : ${response.status}`);
+            
+            if (!response.ok) {
+                throw new Error(`Le serveur backend a renvoyé une erreur ${response.status}`);
+            }
+
+            const jeux = await response.json();
+            console.log("[FRONT] Données JSON lues avec succès. Nombre de jeux reçus :", jeux.length);
+            
+            const container = document.getElementById('backlog');
+            if (!container) {
+                console.error("[FRONT] Erreur critique : Élément HTML avec l'ID 'backlog' introuvable dans le DOM.");
+                return;
+            }
+            
+            container.innerHTML = '';
+
+            if (jeux.length === 0) {
+                container.innerHTML = '<div style="color: #aaa;">Aucun jeu chargé. Vérifiez vos logs serveur.</div>';
+                return;
+            }
+
+            jeux.forEach(jeu => {
+                const block = document.createElement('div');
+                block.className = 'game-block';
+                block.innerHTML = `
+                    <div class="game-title">${jeu.gameName}</div>
+                    <div class="bar-bg"><div class="bar-fill" style="width: ${jeu.percent}%"></div></div>
+                    <div class="game-info">
+                        <span>${jeu.percent}% complété</span>
+                        <span>${jeu.unlocked} / ${jeu.total} spécimens</span>
+                    </div>
+                `;
+                container.appendChild(block);
+            });
+            console.log("[FRONT] Interface mise à jour graphiquement.");
+        } catch (e) { 
+            console.error("[FRONT] Erreur attrapée lors du fetch :", e.message); 
+            document.getElementById('backlog').innerHTML = `<div style="color: #ff6b6b;">Erreur de chargement de l'API (Vérifiez F12 Console)</div>`;
+        }
+    }
+    loadBacklog();
+    setInterval(loadBacklog, 60000);
+</script>
+</body>
+</html>
