@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    html, body { margin: 0; padding: 0; background: #0a0a0c; }
+  </style>
+</helmet>
+<div style="background:#0a0a0c; width:max-content; line-height:0;">
+  <canvas ref="{{ canvasRef }}" width="3840" height="2160" style="display:block;"></canvas>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  canvasRef = (el) => { if (el && !this.canvas) { this.canvas = el; this._boot(); } };
+  renderVals() { return { canvasRef: this.canvasRef }; }
+
+  _boot() {
+    const W = 3840, H = 2160, TAU = Math.PI * 2;
+    this.W = W; this.H = H; this.TAU = TAU;
+    this.ctx = this.canvas.getContext('2d');
+    const rand = (a, b) => a + Math.random() * (b - a);
+
+    // ===== CONFIG SCÈNE =====
+    const SC = {
+      text: ['Noctablob \u00b7 status: away', 'estimated_return: unknown'],
+      main: { cx: 0.30, cy: 0.50, R: 380, cycle: 7.0 },
+      ruler: 'vertical',       // 'vertical' | 'horizontal'
+      morphScale: 1.8,         // >1 = morphing plus lent
+      rulerMode: 'slow',       // 'normal' | 'slow' | 'ramp' | 'down'
+      intro: false,
+      outro: false
+    };
+    this.SC = SC;
+
+    const mkHarmonics = (set) => set.map(h => ({ ...h, phase: Math.random() * TAU }));
+
+    this.main = {
+      cx: SC.main.cx * W, cy: SC.main.cy * H, R: SC.main.R,
+      cycle: SC.main.cycle * SC.morphScale, opacity: 1,
+      appearDelay: 0.4, outroStart: 3.3,
+      harm: mkHarmonics([
+        { k: 2, amp: 0.075, tw: 0.85 },
+        { k: 3, amp: 0.050, tw: 1.30 },
+        { k: 5, amp: 0.030, tw: 0.55 },
+        { k: 7, amp: 0.018, tw: 1.70 }
+      ])
+    };
+
+    const sats = [
+      { homeX: 0.66 * W, homeY: 0.28 * H, R: 150, cycle: rand(3, 5), fade: { period: 11, phase: 0 }, titleSeeker: true },
+      { homeX: 0.82 * W, homeY: 0.64 * H, R: 108, cycle: rand(5, 9), fade: { period: 17, phase: 4 }, titleSeeker: true },
+      { homeX: 0.55 * W, homeY: 0.78 * H, R: 84,  cycle: rand(4, 7), fade: null },
+      { homeX: 0.40 * W, homeY: 0.22 * H, R: 122, cycle: rand(4, 8), fade: { period: 14, phase: 8 } },
+      { homeX: 0.90 * W, homeY: 0.44 * H, R: 70,  cycle: rand(3, 6), fade: null }
+    ];
+    const appear = [1.3, 2.2, 3.1, 4.0, 4.9];
+    const outro = [0.3, 0.9, 1.5, 2.1, 2.7];
+    this.satellites = sats.map((s, i) => ({
+      ...s, cx: s.homeX, cy: s.homeY, opacity: 1,
+      cycle: s.cycle * SC.morphScale,
+      appearDelay: appear[i], outroStart: outro[i],
+      wander: { tx: rand(160, W - 160), ty: rand(160, H - 160), vx: 0, vy: 0, speed: rand(85, 165) },
+      harm: mkHarmonics([
+        { k: 2, amp: 0.10, tw: 1.0 },
+        { k: 3, amp: 0.06, tw: 1.4 },
+        { k: 5, amp: 0.035, tw: 0.7 }
+      ])
+    }));
+
+    this.UM_PER_PX = 0.205;
+    this.measuredUm = null;
+    this.labLines = SC.text;
+    this.glyphs = '\u2593\u2592\u2591#%*/\\|=+<>';
+    this.gridAlpha = 1;
+    this.t0 = performance.now();
+
+    const start = () => this._loop();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(start); else start();
+  }
+
+  _smooth(a, b, x) { let t = (x - a) / (b - a); t = t < 0 ? 0 : t > 1 ? 1 : t; return t * t * (3 - 2 * t); }
+
+  _radiusAt(blob, ang, t) {
+    let m = 1, baseW = this.TAU / blob.cycle;
+    for (const h of blob.harm) m += h.amp * Math.sin(h.k * ang + h.tw * baseW * t + h.phase);
+    return blob.R * m;
+  }
+
+  _blobPath(blob, t, N) {
+    const pts = [];
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (let i = 0; i < N; i++) {
+      const ang = (i / N) * this.TAU;
+      const r = this._radiusAt(blob, ang, t);
+      const x = blob.cx + Math.cos(ang) * r;
+      const y = blob.cy + Math.sin(ang) * r;
+      pts.push([x, y]);
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+    }
+    return { pts, minX, maxX, minY, maxY };
+  }
+
+  _inside(blob, px, py, t) {
+    const dx = px - blob.cx, dy = py - blob.cy;
+    const ang = Math.atan2(dy, dx);
+    return Math.hypot(dx, dy) <= this._radiusAt(blob, ang, t);
+  }
+
+  _coveredByAny(px, py, t) {
+    if (this.main.opacity > 0.45 && this._inside(this.main, px, py, t)) return true;
+    for (const s of this.satellites) if (s.opacity > 0.45 && this._inside(s, px, py, t)) return true;
+    return false;
+  }
+
+  _drawBlobShape(ctx, pts, opacity) {
+    if (opacity <= 0.002) return;
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) {
+      const p0 = pts[i - 1], p1 = pts[i];
+      ctx.quadraticCurveTo(p0[0], p0[1], (p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2);
+    }
+    const last = pts[pts.length - 1], first = pts[0];
+    ctx.quadraticCurveTo(last[0], last[1], (last[0] + first[0]) / 2, (last[1] + first[1]) / 2);
+    ctx.closePath();
+    ctx.fillStyle = '#f0f0ee';
+    ctx.fill();
+    ctx.restore();
+  }
+
+  _drawGrid(ctx, t) {
+    const { W, H } = this;
+    const step = 110, infl = 230, pull = 34;
+    const b = this.main, avgR = b.R;
+    ctx.save();
+    ctx.globalAlpha = this.gridAlpha;
+    ctx.strokeStyle = '#1e1e24';
+    ctx.lineWidth = 1.4;
+    ctx.setLineDash([4, 8]);
+    const warp = (x, y) => {
+      const dx = x - b.cx, dy = y - b.cy, d = Math.hypot(dx, dy), edge = avgR + infl;
+      if (d >= edge || d < 1) return [x, y];
+      const f = 1 - Math.max(0, (d - avgR) / infl);
+      const s = f * f * pull;
+      return [x - (dx / d) * s, y - (dy / d) * s];
+    };
+    for (let gx = 0; gx <= W; gx += step) {
+      ctx.beginPath();
+      if (Math.abs(gx - b.cx) >= avgR + infl) { ctx.moveTo(gx, 0); ctx.lineTo(gx, H); }
+      else { let f = true; for (let gy = 0; gy <= H; gy += 22) { const [wx, wy] = warp(gx, gy); f ? (ctx.moveTo(wx, wy), f = false) : ctx.lineTo(wx, wy); } }
+      ctx.stroke();
+    }
+    for (let gy = 0; gy <= H; gy += step) {
+      ctx.beginPath();
+      if (Math.abs(gy - b.cy) >= avgR + infl) { ctx.moveTo(0, gy); ctx.lineTo(W, gy); }
+      else { let f = true; for (let gx = 0; gx <= W; gx += 22) { const [wx, wy] = warp(gx, gy); f ? (ctx.moveTo(wx, wy), f = false) : ctx.lineTo(wx, wy); } }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  _rulerValue(geo, t) {
+    const sizePx = this.SC.ruler === 'horizontal' ? (geo.maxX - geo.minX) : (geo.maxY - geo.minY);
+    let target = sizePx * this.UM_PER_PX;
+    const mode = this.SC.rulerMode;
+    if (mode === 'ramp') target *= this._smooth(this.main.appearDelay, this.main.appearDelay + 2.2, t);
+    else if (mode === 'down') target *= (1 - this._smooth(0, 4, t));
+    const k = mode === 'slow' ? 0.015 : 0.09;
+    this.measuredUm = this.measuredUm == null ? target : this.measuredUm + (target - this.measuredUm) * k;
+    return this.measuredUm;
+  }
+
+  _drawRuler(ctx, geo, t) {
+    const val = this._rulerValue(geo, t);
+    ctx.save();
+    ctx.globalAlpha = this.main.opacity;
+    ctx.strokeStyle = 'rgba(240,240,238,0.35)';
+    ctx.fillStyle = '#555550';
+    if (this.SC.ruler === 'horizontal') {
+      const y = geo.maxY + 96, x1 = geo.minX, x2 = geo.maxX;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x1, y - 22); ctx.lineTo(x1, y + 22);
+      ctx.moveTo(x2, y - 22); ctx.lineTo(x2, y + 22);
+      ctx.stroke();
+      ctx.lineWidth = 1; ctx.beginPath();
+      for (let xx = x1; xx <= x2; xx += 40) { const major = Math.round((xx - x1) / 40) % 5 === 0; ctx.moveTo(xx, y); ctx.lineTo(xx, y + (major ? 16 : 9)); }
+      ctx.stroke();
+      ctx.font = "500 30px 'IBM Plex Mono', monospace";
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillText(val.toFixed(1) + ' \u00b5m', (x1 + x2) / 2, y + 30);
+      ctx.font = "400 22px 'IBM Plex Mono', monospace"; ctx.textAlign = 'left';
+      ctx.fillText('W', x1, y - 40);
+    } else {
+      const x = geo.minX - 96, top = geo.minY, bot = geo.maxY;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bot); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x - 22, top); ctx.lineTo(x + 22, top);
+      ctx.moveTo(x - 22, bot); ctx.lineTo(x + 22, bot);
+      ctx.stroke();
+      ctx.lineWidth = 1; ctx.beginPath();
+      for (let yy = top; yy <= bot; yy += 40) { const major = Math.round((yy - top) / 40) % 5 === 0; ctx.moveTo(x, yy); ctx.lineTo(x + (major ? 16 : 9), yy); }
+      ctx.stroke();
+      ctx.font = "500 30px 'IBM Plex Mono', monospace"; ctx.textBaseline = 'middle';
+      ctx.save(); ctx.translate(x - 34, (top + bot) / 2); ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = 'center'; ctx.fillText(val.toFixed(1) + ' \u00b5m', 0, 0); ctx.restore();
+      ctx.font = "400 22px 'IBM Plex Mono', monospace"; ctx.textAlign = 'left';
+      ctx.fillText('H', x + 26, top + 18);
+    }
+    ctx.restore();
+  }
+
+  _drawLabText(ctx, t) {
+    const lines = this.labLines, lineH = 48;
+    const startY = this.H / 2 - (lines.length * lineH) / 2 + lineH / 2;
+    ctx.save();
+    ctx.font = "400 32px 'IBM Plex Mono', monospace";
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    for (let li = 0; li < lines.length; li++) {
+      const line = lines[li], y0 = startY + li * lineH;
+      const total = ctx.measureText(line).width;
+      let x = this.W / 2 - total / 2;
+      for (const ch of line) {
+        const w = ctx.measureText(ch).width || 18;
+        const inside = ch !== ' ' && this._coveredByAny(x + w / 2, y0, t);
+        let glyph = ch, dy = 0;
+        if (inside) {
+          if (Math.random() < 0.32) glyph = this.glyphs[(Math.random() * this.glyphs.length) | 0];
+          dy = (Math.random() - 0.5) * 7;
+          ctx.fillStyle = '#26262b';
+        } else ctx.fillStyle = '#3a3a40';
+        ctx.fillText(glyph, x, y0 + dy);
+        x += w;
+      }
+    }
+    ctx.restore();
+  }
+
+  _opacityFor(blob, t) {
+    if (this.SC.intro) return this._smooth(blob.appearDelay, blob.appearDelay + 1.3, t);
+    if (this.SC.outro) return 1 - this._smooth(blob.outroStart, blob.outroStart + 2.2, t);
+    return null;
+  }
+
+  _loop = () => {
+    const ctx = this.ctx, { W, H } = this, SC = this.SC;
+    const t = (performance.now() - this.t0) / 1000;
+    const dt = this._lastT == null ? 0.016 : Math.min(0.05, t - this._lastT);
+    this._lastT = t;
+
+    if (SC.intro) this.gridAlpha = this._smooth(0, 1.4, t);
+    else if (SC.outro) this.gridAlpha = 1 - this._smooth(5, 8.5, t);
+    else this.gridAlpha = 1;
+
+    ctx.fillStyle = '#0a0a0c';
+    ctx.fillRect(0, 0, W, H);
+
+    this._drawGrid(ctx, t);
+
+    const mOpac = this._opacityFor(this.main, t);
+    this.main.opacity = mOpac == null ? 1 : mOpac;
+
+    const mainGeo = this._blobPath(this.main, t, 190);
+    this._drawRuler(ctx, mainGeo, t);
+
+    for (const s of this.satellites) {
+      const w = s.wander;
+      const dx = w.tx - s.cx, dy = w.ty - s.cy, d = Math.hypot(dx, dy) || 1;
+      if (d < 50) {
+        if (s.titleSeeker && Math.random() < 0.55) { w.tx = W / 2 + (Math.random() - 0.5) * 1000; w.ty = H / 2 + (Math.random() - 0.5) * 280; }
+        else { w.tx = 160 + Math.random() * (W - 320); w.ty = 160 + Math.random() * (H - 320); }
+        w.speed = 85 + Math.random() * 85;
+      }
+      w.vx += ((dx / d) * w.speed - w.vx) * Math.min(1, dt * 1.3);
+      w.vy += ((dy / d) * w.speed - w.vy) * Math.min(1, dt * 1.3);
+      s.cx += w.vx * dt; s.cy += w.vy * dt;
+
+      const o = this._opacityFor(s, t);
+      if (o != null) s.opacity = o;
+      else if (s.fade) s.opacity = 0.18 + 0.82 * (0.5 + 0.5 * Math.sin((this.TAU / s.fade.period) * t + s.fade.phase));
+
+      const g = this._blobPath(s, t, 120);
+      this._drawBlobShape(ctx, g.pts, s.opacity);
+    }
+
+    this._drawBlobShape(ctx, mainGeo.pts, this.main.opacity);
+    this._drawLabText(ctx, t);
+
+    this.raf = requestAnimationFrame(this._loop);
+  };
+
+  componentWillUnmount() { if (this.raf) cancelAnimationFrame(this.raf); }
+}
+</script>
+</body>
+</html>

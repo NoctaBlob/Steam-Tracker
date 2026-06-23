@@ -1,28 +1,24 @@
 services:
+
+  # ── API Node.js — Steam, Twitch, TUNA ──
   steam-api:
-    build: .
+    image: ghcr.io/noctablob/stream-noctablob:latest
     container_name: steam-api-server
+    pull_policy: always
     ports:
       - "3000:3000"
     environment:
-      # Steam
       - STEAM_API_KEY=${STEAM_API_KEY}
       - STEAM_ID=${STEAM_ID}
-      # Twitch
-      # Créer une app sur https://dev.twitch.tv/console → obtenir CLIENT_ID + CLIENT_SECRET
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
       - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
-      - TWITCH_CHANNEL=${TWITCH_CHANNEL}        # pseudo du channel ex: noctablob
-      - TWITCH_CHANNEL_ID=${TWITCH_CHANNEL_ID}  # ID numérique (https://www.streamweasels.com/tools/convert-twitch-username-to-user-id/)
+      - TWITCH_CHANNEL=${TWITCH_CHANNEL}
+      - TWITCH_CHANNEL_ID=${TWITCH_CHANNEL_ID}
     volumes:
-      - .:/usr/src/app
-      - /usr/src/app/node_modules
-      # Monte le fichier TUNA depuis Windows vers le container
-      # Remplace le chemin ci-dessous par celui que tu as choisi dans TUNA
-      - C:\Developpement\Steam-Tracker\data\tuna_track.txt:/tuna/track.txt:ro
-    command: node --watch server.js
+      - C:\Developpement\Stream-NoctaBlob\data\tuna_track.txt:/tuna/track.txt:ro
     restart: unless-stopped
 
+  # ── Nginx — sert les fichiers HTML statiques ──
   steam-ui:
     image: nginx:alpine
     container_name: steam-api-ui
