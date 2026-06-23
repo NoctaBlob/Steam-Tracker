@@ -216,16 +216,10 @@ function parseTunaFile() {
     }
 }
 
-// Lecture initiale + surveillance des changements
+// Polling toutes les 2s — fs.watch peu fiable sur Docker/Windows
 parseTunaFile();
-try {
-    fs.watch(TUNA_FILE, () => parseTunaFile());
-    console.log(`[TUNA] Surveillance de ${TUNA_FILE} active.`);
-} catch {
-    // Le fichier n'existe pas encore — polling de secours toutes les 2s
-    console.warn(`[TUNA] Fichier introuvable, polling toutes les 2s...`);
-    setInterval(parseTunaFile, 2000);
-}
+setInterval(parseTunaFile, 2000);
+console.log(`[TUNA] Polling de ${TUNA_FILE} toutes les 2s.`);
 
 app.get('/api/tuna', (req, res) => {
     res.json(currentTrack);
