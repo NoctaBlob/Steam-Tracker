@@ -2,10 +2,9 @@ FROM node:lts-alpine
 
 WORKDIR /app
 
-# On installe directement express et axios (évite d'avoir à gérer un package.json en local)
-RUN npm install express axios
+# ws : WebSocket pour le chat Twitch IRC
+RUN npm install express axios ws
 
-# Copie du code source du serveur
 COPY server.js .
 
 EXPOSE 3000

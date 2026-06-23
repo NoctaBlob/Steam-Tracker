@@ -1,13 +1,34 @@
 const express = require('express');
-const axios = require('axios');
+const axios   = require('axios');
+const http    = require('http');
+const fs      = require('fs');
+const WebSocket = require('ws');
 
-const app = express();
+const app  = express();
 const PORT = 3000;
 
-const STEAM_API_KEY = process.env.STEAM_API_KEY;
-const STEAM_ID = process.env.STEAM_ID; 
+app.use(express.json());
 
-// Configuration unique : AppID -> Nom propre
+const STEAM_API_KEY = process.env.STEAM_API_KEY;
+const STEAM_ID      = process.env.STEAM_ID;
+
+const TWITCH_CLIENT_ID     = process.env.TWITCH_CLIENT_ID;
+const TWITCH_CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET;
+const TWITCH_CHANNEL       = process.env.TWITCH_CHANNEL;   // ex: "noctablob"
+const TWITCH_CHANNEL_ID    = process.env.TWITCH_CHANNEL_ID; // ID numérique du channel
+
+// ─────────────────────────────────────────────
+// CORS
+// ─────────────────────────────────────────────
+app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Content-Type");
+    next();
+});
+
+// ─────────────────────────────────────────────
+// Configuration jeux Steam
+// ─────────────────────────────────────────────
 const JEUX_DU_MOMENT = {
     "289650": "Assassin's Creed Unity",
     "812140": "Assassin's Creed Odyssey",
@@ -27,31 +48,28 @@ const JEUX_DU_MOMENT = {
     "250900": "The Binding of Isaac: Rebirth"
 };
 
-app.use((req, res, next) => {
-    res.header("Access-Control-Allow-Origin", "*");
-    next();
-});
-
-// ROUTE 1 : Pour ton widget en jeu (Steam-Tracker.html)
+// ─────────────────────────────────────────────
+// ROUTE 1 : Steam Tracker (succès en cours)
+// ─────────────────────────────────────────────
 app.get('/api/achievements', async (req, res) => {
-    console.log(`\n[ROUTE] Requête reçue sur /api/achievements`);
+    console.log(`\n[ROUTE] /api/achievements`);
     try {
-        if (!STEAM_API_KEY || !STEAM_ID) {
-            return res.status(500).json({ error: "Variables manquantes." });
-        }
+        if (!STEAM_API_KEY || !STEAM_ID)
+            return res.status(500).json({ error: "Variables Steam manquantes." });
 
-        const playerSummary = await axios.get(`http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAM_API_KEY}&steamids=${STEAM_ID}`);
+        const playerSummary = await axios.get(
+            `http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAM_API_KEY}&steamids=${STEAM_ID}`
+        );
         const player = playerSummary.data.response.players[0];
-        
         if (!player) return res.status(404).json({ error: "Joueur introuvable." });
+
         const gameId = player.gameid;
+        if (!gameId) return res.json({ playing: false, message: "Aucun jeu Steam en cours." });
 
-        if (!gameId) {
-            return res.json({ playing: false, message: "Aucun jeu Steam en cours." });
-        }
-
-        const playerAchievements = await axios.get(`http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?appid=${gameId}&key=${STEAM_API_KEY}&steamid=${STEAM_ID}`);
-        const gameSchema = await axios.get(`http://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v0002/?key=${STEAM_API_KEY}&appid=${gameId}&l=french`);
+        const [playerAchievements, gameSchema] = await Promise.all([
+            axios.get(`http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?appid=${gameId}&key=${STEAM_API_KEY}&steamid=${STEAM_ID}`),
+            axios.get(`http://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v0002/?key=${STEAM_API_KEY}&appid=${gameId}&l=french`)
+        ]);
 
         const achievementsList = playerAchievements.data.playerstats.achievements;
         const schemaList = gameSchema.data.game.availableGameStats.achievements;
@@ -65,80 +83,253 @@ app.get('/api/achievements', async (req, res) => {
             };
         });
 
-        // Application du nom personnalisé si le jeu en cours est dans notre dictionnaire
         const gameName = JEUX_DU_MOMENT[gameId] || gameSchema.data.game.gameName;
-
-        res.json({
-            playing: true,
-            gameName: gameName,
-            gameId: gameId,
-            achievements: fullAchievements
-        });
+        res.json({ playing: true, gameName, gameId, achievements: fullAchievements });
 
     } catch (error) {
-        console.error(`[ERROR] Erreur sur /api/achievements : ${error.message}`);
-        res.status(500).json({ error: "Erreur lors de la synchronisation Steam." });
+        console.error(`[ERROR] /api/achievements : ${error.message}`);
+        res.status(500).json({ error: "Erreur Steam API." });
     }
 });
 
-// ROUTE 2 : Pour ton avancée globale (Steam-Library.html)
+// ─────────────────────────────────────────────
+// ROUTE 2 : Steam Library (backlog)
+// ─────────────────────────────────────────────
 app.get('/api/library', async (req, res) => {
-    console.log(`\n[ROUTE] Requête reçue sur /api/library`);
+    console.log(`\n[ROUTE] /api/library`);
     try {
-        if (!STEAM_API_KEY || !STEAM_ID) {
-            console.error("[ERROR] Clé API ou SteamID manquant.");
-            return res.status(500).json({ error: "Variables manquantes." });
-        }
+        if (!STEAM_API_KEY || !STEAM_ID)
+            return res.status(500).json({ error: "Variables Steam manquantes." });
 
         let libraryData = [];
         const appIds = Object.keys(JEUX_DU_MOMENT);
-        console.log(`[INFO] Début de la boucle sur les ${appIds.length} jeux...`);
 
         for (const appId of appIds) {
             const customName = JEUX_DU_MOMENT[appId];
             try {
-                console.log(`[STEAM API] Traitement AppID ${appId} (${customName})...`);
-                const stats = await axios.get(`http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?appid=${appId}&key=${STEAM_API_KEY}&steamid=${STEAM_ID}`);
-                
-                if (stats.data && stats.data.playerstats && stats.data.playerstats.achievements) {
-                    const total = stats.data.playerstats.achievements.length;
+                const stats = await axios.get(
+                    `http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?appid=${appId}&key=${STEAM_API_KEY}&steamid=${STEAM_ID}`
+                );
+                if (stats.data?.playerstats?.achievements) {
+                    const total    = stats.data.playerstats.achievements.length;
                     const unlocked = stats.data.playerstats.achievements.filter(a => a.achieved === 1).length;
-                    
-                    console.log(`   -> [OK] ${customName} : ${unlocked}/${total} succès.`);
-
-                    libraryData.push({
-                        gameName: customName,
-                        gameId: appId,
-                        unlocked: unlocked,
-                        total: total,
-                        percent: total > 0 ? Math.round((unlocked / total) * 100) : 0
-                    });
+                    libraryData.push({ gameName: customName, gameId: appId, unlocked, total, percent: total > 0 ? Math.round((unlocked / total) * 100) : 0 });
                 }
-            } catch (e) {
-                console.warn(`   -> [WARN] Impossible de fetch l'AppID ${appId}. Mode secours activé pour ${customName}.`);
-                libraryData.push({
-                    gameName: customName,
-                    gameId: appId,
-                    unlocked: 0,
-                    total: 0,
-                    percent: 0
-                });
+            } catch {
+                libraryData.push({ gameName: customName, gameId: appId, unlocked: 0, total: 0, percent: 0 });
             }
         }
 
-        // Tri alphabétique sur les noms propres
         libraryData.sort((a, b) => a.gameName.localeCompare(b.gameName));
-        console.log("[INFO] Tri alphabétique appliqué.");
-
         res.json(libraryData);
+
     } catch (error) {
-        console.error(`[ERROR] Erreur critique sur /api/library : ${error.message}`);
-        res.status(500).json({ error: "Erreur Library API" });
+        console.error(`[ERROR] /api/library : ${error.message}`);
+        res.status(500).json({ error: "Erreur Library API." });
     }
 });
 
+// ─────────────────────────────────────────────
+// TWITCH — token OAuth app (Client Credentials)
+// ─────────────────────────────────────────────
+let twitchToken = null;
+let twitchTokenExpiry = 0;
+
+async function getTwitchToken() {
+    if (twitchToken && Date.now() < twitchTokenExpiry) return twitchToken;
+    console.log("[TWITCH] Renouvellement du token OAuth...");
+    const r = await axios.post(
+        `https://id.twitch.tv/oauth2/token`,
+        null,
+        { params: { client_id: TWITCH_CLIENT_ID, client_secret: TWITCH_CLIENT_SECRET, grant_type: 'client_credentials' } }
+    );
+    twitchToken = r.data.access_token;
+    twitchTokenExpiry = Date.now() + (r.data.expires_in - 60) * 1000;
+    console.log("[TWITCH] Token obtenu.");
+    return twitchToken;
+}
+
+// ─────────────────────────────────────────────
+// ROUTE 3 : Twitch — dernier follower / sub / don
+// ─────────────────────────────────────────────
+app.get('/api/twitch/info', async (req, res) => {
+    console.log(`\n[ROUTE] /api/twitch/info`);
+    try {
+        if (!TWITCH_CLIENT_ID || !TWITCH_CLIENT_SECRET || !TWITCH_CHANNEL_ID)
+            return res.status(500).json({ error: "Variables Twitch manquantes." });
+
+        const token = await getTwitchToken();
+        const headers = { 'Client-Id': TWITCH_CLIENT_ID, 'Authorization': `Bearer ${token}` };
+
+        const [followersRes, subsRes] = await Promise.allSettled([
+            axios.get(`https://api.twitch.tv/helix/channels/followers?broadcaster_id=${TWITCH_CHANNEL_ID}&first=1`, { headers }),
+            axios.get(`https://api.twitch.tv/helix/subscriptions?broadcaster_id=${TWITCH_CHANNEL_ID}&first=1`, { headers })
+        ]);
+
+        const lastFollower = followersRes.status === 'fulfilled' && followersRes.value.data.data.length > 0
+            ? followersRes.value.data.data[0].user_name : null;
+
+        const lastSub = subsRes.status === 'fulfilled' && subsRes.value.data.data.length > 0
+            ? subsRes.value.data.data[0].user_name : null;
+
+        // Les dons (bits) nécessitent le scope bits:read — retournés depuis le cache local
+        res.json({
+            lastFollower: lastFollower || twitchCache.lastFollower,
+            lastSub:      lastSub      || twitchCache.lastSub,
+            lastDon:      twitchCache.lastDon,
+            lastDonAmount: twitchCache.lastDonAmount
+        });
+
+    } catch (error) {
+        console.error(`[ERROR] /api/twitch/info : ${error.message}`);
+        res.status(500).json({ error: "Erreur Twitch API." });
+    }
+});
+
+// ─────────────────────────────────────────────
+// ROUTE 4 : TUNA — musique en cours (OBS Plugin)
+// TUNA écrit dans un fichier local monté via Docker volume.
+// Le chemin dans le container est toujours /tuna/track.txt
+// (mappé depuis le chemin Windows dans docker-compose.yml)
+// ─────────────────────────────────────────────
+const TUNA_FILE = '/tuna/track.txt';
+let currentTrack = { title: null, artist: null, playing: false };
+
+function parseTunaFile() {
+    try {
+        if (!fs.existsSync(TUNA_FILE)) return;
+        const raw = fs.readFileSync(TUNA_FILE, 'utf8').trim();
+        if (!raw) return;
+
+        // TUNA écrit du JSON compact avec {json_compact}
+        const data = JSON.parse(raw);
+
+        const title  = data.title  || data.name  || null;
+        const artist = data.artists?.[0] || data.artist || data.first_artist || null;
+
+        if (title !== currentTrack.title || artist !== currentTrack.artist) {
+            currentTrack = { title, artist, playing: !!title };
+            console.log(`[TUNA] ${artist} — ${title}`);
+        }
+    } catch (e) {
+        // Fichier en cours d'écriture ou format inattendu — on ignore
+    }
+}
+
+// Lecture initiale + surveillance des changements
+parseTunaFile();
+try {
+    fs.watch(TUNA_FILE, () => parseTunaFile());
+    console.log(`[TUNA] Surveillance de ${TUNA_FILE} active.`);
+} catch {
+    // Le fichier n'existe pas encore — polling de secours toutes les 2s
+    console.warn(`[TUNA] Fichier introuvable, polling toutes les 2s...`);
+    setInterval(parseTunaFile, 2000);
+}
+
+app.get('/api/tuna', (req, res) => {
+    res.json(currentTrack);
+});
+
+// ─────────────────────────────────────────────
+// TWITCH IRC — WebSocket pour le chat
+// Connexion anonyme en lecture seule (justwatch)
+// Les messages sont broadcastés aux clients SSE
+// ─────────────────────────────────────────────
+let sseClients = [];
+let twitchCache = { lastFollower: null, lastSub: null, lastDon: null, lastDonAmount: null };
+
+function broadcastSSE(event, data) {
+    const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+    sseClients = sseClients.filter(client => {
+        try { client.write(payload); return true; }
+        catch { return false; }
+    });
+}
+
+function connectTwitchIRC() {
+    if (!TWITCH_CHANNEL) { console.warn("[IRC] TWITCH_CHANNEL non défini, skip."); return; }
+    console.log(`[IRC] Connexion au chat Twitch de #${TWITCH_CHANNEL}...`);
+    const ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
+
+    ws.on('open', () => {
+        ws.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
+        ws.send('PASS SCHMOOPIIE');
+        ws.send('NICK justinfan12345');
+        ws.send(`JOIN #${TWITCH_CHANNEL.toLowerCase()}`);
+        console.log(`[IRC] Connecté et rejoint #${TWITCH_CHANNEL}`);
+    });
+
+    ws.on('message', (raw) => {
+        const msg = raw.toString();
+
+        // Keepalive
+        if (msg.includes('PING')) { ws.send('PONG :tmi.twitch.tv'); return; }
+
+        // Parse tags IRCv3
+        const match = msg.match(/^@([^ ]+) :([^!]+)![^ ]+ PRIVMSG #\S+ :(.+)$/);
+        if (!match) return;
+
+        const tagStr = match[1];
+        const username = match[2];
+        const text = match[3].trimEnd();
+
+        const tags = {};
+        tagStr.split(';').forEach(t => {
+            const [k, v] = t.split('=');
+            tags[k] = v;
+        });
+
+        const chatMsg = {
+            id:       tags['id'] || Date.now().toString(),
+            username: tags['display-name'] || username,
+            color:    tags['color'] || '#f0f0ee',
+            badges:   tags['badges'] || '',
+            text,
+            ts: Date.now()
+        };
+
+        broadcastSSE('chat', chatMsg);
+    });
+
+    ws.on('close', () => {
+        console.warn("[IRC] Déconnecté. Reconnexion dans 5s...");
+        setTimeout(connectTwitchIRC, 5000);
+    });
+
+    ws.on('error', (e) => console.error("[IRC] Erreur:", e.message));
+}
+
+// ─────────────────────────────────────────────
+// ROUTE 5 : SSE — flux temps réel pour les widgets
+// ─────────────────────────────────────────────
+app.get('/api/stream', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    // Heartbeat toutes les 20s pour garder la connexion ouverte
+    const heartbeat = setInterval(() => {
+        try { res.write(': heartbeat\n\n'); } catch { clearInterval(heartbeat); }
+    }, 20000);
+
+    sseClients.push(res);
+    console.log(`[SSE] Nouveau client connecté (total: ${sseClients.length})`);
+
+    req.on('close', () => {
+        clearInterval(heartbeat);
+        sseClients = sseClients.filter(c => c !== res);
+        console.log(`[SSE] Client déconnecté (total: ${sseClients.length})`);
+    });
+});
+
+// ─────────────────────────────────────────────
+// Démarrage
+// ─────────────────────────────────────────────
 app.listen(PORT, () => {
     console.log(`=============================================`);
-    console.log(` Serveur API actif sur le port ${PORT}`);
+    console.log(` Serveur NoctaBlob actif sur le port ${PORT}`);
     console.log(`=============================================`);
+    connectTwitchIRC();
 });

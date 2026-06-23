@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>NOCTABLOB · Twitch Overlay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:   #0a0a0c;
+    --spec: #f0f0ee;
+    --g1:   #b6b6bc;
+    --g2:   #8a8a90;
+    --g3:   #6a6a72;
+    --g4:   #3a3a40;
+    --line: rgba(240,240,238,0.08);
+    --tick: rgba(240,240,238,0.28);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: transparent; font-family: 'IBM Plex Mono', monospace; -webkit-font-smoothing: antialiased; }
+
+  /* ── Scène 4K ── */
+  #stage { position: relative; width: 3840px; height: 2160px; overflow: hidden; }
+
+  /* ────────────────────────────────────────────
+     PANNEAU CHAT — droite
+  ──────────────────────────────────────────── */
+  #chat-panel {
+    position: absolute;
+    top: 5%; bottom: 5%;
+    right: 5%;
+    width: 700px;
+    background: rgba(10,10,13,0.92);
+    border: 1.5px solid var(--line);
+    display: flex; flex-direction: column;
+  }
+
+  /* coins repère */
+  .tick { position: absolute; width: 28px; height: 28px; pointer-events: none; }
+  .tick::before, .tick::after { content: ""; position: absolute; background: var(--tick); }
+  .tick::before { width: 28px; height: 3px; }
+  .tick::after  { width: 3px; height: 28px; }
+  .tick.tl { top: 28px; left: 28px; }   .tick.tl::before { top:0; left:0; }    .tick.tl::after { top:0; left:0; }
+  .tick.tr { top: 28px; right: 28px; }  .tick.tr::before { top:0; right:0; }   .tick.tr::after { top:0; right:0; }
+  .tick.bl { bottom:28px; left:28px; }  .tick.bl::before { bottom:0; left:0; } .tick.bl::after { bottom:0; left:0; }
+  .tick.br { bottom:28px; right:28px; } .tick.br::before { bottom:0; right:0; }.tick.br::after { bottom:0; right:0; }
+
+  /* en-tête chat */
+  #chat-header {
+    padding: 44px 48px 28px;
+    border-bottom: 1px solid var(--line);
+    flex: none;
+  }
+  .chat-kicker { font-size: 22px; font-weight: 400; color: var(--g3); letter-spacing: 2px; }
+  .chat-title  { font-size: 46px; font-weight: 600; color: var(--spec); letter-spacing: 1px; margin-top: 10px; line-height: 1; }
+
+  /* flux de messages */
+  #chat-feed {
+    flex: 1; min-height: 0;
+    padding: 28px 48px;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    gap: 20px;
+    overflow: hidden;
+  }
+
+  .chat-msg {
+    display: flex; flex-direction: column; gap: 6px;
+    border-left: 2px solid var(--line);
+    padding-left: 18px;
+    opacity: 1;
+    transition: opacity 0.4s ease;
+  }
+  .chat-msg.fading { opacity: 0.22; }
+
+  .chat-user {
+    font-size: 22px; font-weight: 600;
+    /* couleur injectée inline par JS */
+    filter: saturate(0.5) brightness(1.3);
+  }
+  .chat-text {
+    font-size: 24px; font-weight: 400; color: var(--g1);
+    line-height: 1.45;
+    word-break: break-word;
+  }
+  .chat-ts {
+    font-size: 17px; color: var(--g4);
+  }
+
+  /* pied chat */
+  #chat-foot {
+    padding: 22px 48px 38px;
+    border-top: 1px solid var(--line);
+    font-size: 20px; color: var(--g4); letter-spacing: 1px;
+    flex: none;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .dot-live {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--spec); opacity: 0.5;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:0.5;} 50%{opacity:1;} }
+
+  /* ────────────────────────────────────────────
+     BARRE BAS — infos permanentes
+  ──────────────────────────────────────────── */
+  #bottom-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 110px;
+    background: rgba(10,10,13,0.96);
+    border-top: 1.5px solid var(--line);
+    display: flex; align-items: center;
+    padding: 0 80px;
+    gap: 0;
+  }
+
+  .bar-cell {
+    flex: 1;
+    display: flex; flex-direction: column; gap: 8px;
+    border-right: 1px solid var(--line);
+    padding: 0 48px;
+  }
+  .bar-cell:first-child { padding-left: 0; }
+  .bar-cell:last-child  { border-right: none; }
+
+  .bar-label { font-size: 18px; color: var(--g4); letter-spacing: 1.5px; text-transform: uppercase; }
+  .bar-value { font-size: 30px; font-weight: 500; color: var(--spec); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-value.empty { color: var(--g3); font-weight: 400; }
+
+  /* musique — icône note */
+  #cell-music .bar-label::before { content: "♩  "; color: var(--g3); }
+
+  /* horloge */
+  #cell-clock .bar-value { letter-spacing: 2px; }
+</style>
+</head>
+<body>
+
+<div id="stage">
+
+  <!-- ── PANNEAU CHAT ── -->
+  <div id="chat-panel">
+    <span class="tick tl"></span><span class="tick tr"></span>
+    <span class="tick bl"></span><span class="tick br"></span>
+
+    <div id="chat-header">
+      <div class="chat-kicker">// FIG.08 · chat.feed</div>
+      <div class="chat-title">TRANSMISSION</div>
+    </div>
+
+    <div id="chat-feed">
+      <div class="chat-msg fading">
+        <span class="chat-user" style="color:#f0f0ee;">specimen_lab</span>
+        <span class="chat-text">flux en direct · twitch.tv</span>
+      </div>
+    </div>
+
+    <div id="chat-foot">
+      <div class="dot-live"></div>
+      <span>emplacement_widget.chat</span>
+    </div>
+  </div>
+
+  <!-- ── BARRE BAS ── -->
+  <div id="bottom-bar">
+    <div class="bar-cell" id="cell-audio">
+      <div class="bar-label">audio</div>
+      <div class="bar-value empty" id="val-audio">— en attente de lecture —</div>
+    </div>
+    <div class="bar-cell" id="cell-follower">
+      <div class="bar-label">dernier follower</div>
+      <div class="bar-value empty" id="val-follower">—</div>
+    </div>
+    <div class="bar-cell" id="cell-sub">
+      <div class="bar-label">dernier sub</div>
+      <div class="bar-value empty" id="val-sub">—</div>
+    </div>
+    <div class="bar-cell" id="cell-don">
+      <div class="bar-label">dernier don</div>
+      <div class="bar-value empty" id="val-don">—</div>
+    </div>
+    <div class="bar-cell" id="cell-clock">
+      <div class="bar-label">heure</div>
+      <div class="bar-value" id="val-clock">--:--:--</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const API = 'http://localhost:3000';
+  const MAX_MESSAGES = 8;
+  const FADE_AFTER   = 4; // les messages au-delà de N s'estompent
+
+  // ─── Horloge ───
+  function tickClock() {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2,'0');
+    const m = String(now.getMinutes()).padStart(2,'0');
+    const s = String(now.getSeconds()).padStart(2,'0');
+    document.getElementById('val-clock').textContent = `${h}:${m}:${s}`;
+  }
+  setInterval(tickClock, 1000);
+  tickClock();
+
+  // ─── Chat SSE ───
+  function initSSE() {
+    const feed = document.getElementById('chat-feed');
+    const es = new EventSource(`${API}/api/stream`);
+
+    es.addEventListener('chat', (e) => {
+      const msg = JSON.parse(e.data);
+
+      const el = document.createElement('div');
+      el.className = 'chat-msg';
+      el.innerHTML = `
+        <span class="chat-user" style="color:${sanitize(msg.color)}">${sanitize(msg.username)}</span>
+        <span class="chat-text">${sanitize(msg.text)}</span>
+      `;
+      feed.appendChild(el);
+
+      // Limiter le nombre de messages et estomper les anciens
+      const msgs = feed.querySelectorAll('.chat-msg');
+      if (msgs.length > MAX_MESSAGES) msgs[0].remove();
+
+      feed.querySelectorAll('.chat-msg').forEach((m, i, arr) => {
+        const fromEnd = arr.length - 1 - i;
+        m.classList.toggle('fading', fromEnd >= FADE_AFTER);
+      });
+    });
+
+    es.onerror = () => {
+      console.warn('[SSE] Connexion perdue. Reconnexion dans 3s...');
+      es.close();
+      setTimeout(initSSE, 3000);
+    };
+  }
+
+  function sanitize(str) {
+    return String(str || '')
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;');
+  }
+
+  // ─── Infos Twitch (follower / sub / don) ───
+  async function fetchTwitchInfo() {
+    try {
+      const r = await fetch(`${API}/api/twitch/info`);
+      const d = await r.json();
+
+      setValue('val-follower', d.lastFollower);
+      setValue('val-sub',      d.lastSub);
+
+      if (d.lastDon) {
+        const txt = d.lastDonAmount ? `${d.lastDon} · ${d.lastDonAmount}` : d.lastDon;
+        setValue('val-don', txt);
+      } else {
+        setValue('val-don', null);
+      }
+    } catch(e) {
+      console.error('[TWITCH INFO]', e.message);
+    }
+  }
+
+  // ─── Musique TUNA ───
+  async function fetchTuna() {
+    try {
+      const r = await fetch(`${API}/api/tuna`);
+      const d = await r.json();
+      const el = document.getElementById('val-audio');
+
+      if (d.playing && d.title) {
+        const label = d.artist ? `${d.artist} — ${d.title}` : d.title;
+        el.textContent = label;
+        el.classList.remove('empty');
+      } else {
+        el.textContent = '— en attente de lecture —';
+        el.classList.add('empty');
+      }
+    } catch(e) {
+      console.error('[TUNA]', e.message);
+    }
+  }
+
+  function setValue(id, val) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (val) {
+      el.textContent = val;
+      el.classList.remove('empty');
+    } else {
+      el.textContent = '—';
+      el.classList.add('empty');
+    }
+  }
+
+  // ─── Init ───
+  initSSE();
+  fetchTwitchInfo();
+  fetchTuna();
+  setInterval(fetchTwitchInfo, 30000);
+  setInterval(fetchTuna,       5000);
+</script>
+</body>
+</html>
