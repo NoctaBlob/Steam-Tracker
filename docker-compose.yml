@@ -1,8 +1,7 @@
 services:
   steam-api:
-    image: ghcr.io/noctablob/steam-tracker:latest
+    build: .
     container_name: steam-api-server
-    pull_policy: build
     ports:
       - "3000:3000"
     environment:
