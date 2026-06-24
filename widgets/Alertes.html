@@ -32,17 +32,17 @@
 
   #stage {
     position: absolute; inset: 0;
-    display: flex; align-items: center; justify-content: center;
+    display: flex; align-items: flex-start; justify-content: center;
   }
-  /* le bloc est calé un peu au-dessus du centre pour dégager le jeu */
-  #stage { padding-bottom: 360px; }
+  /* calé à ~10% du haut */
+  #stage { padding-top: 216px; }
 
   #alert {
     position: relative;
-    width: 1280px;
+    width: 1030px;
     background: rgba(10,10,13,0.94);
     border: 1.5px solid var(--line);
-    padding: 0 0 52px;
+    padding: 0 0 44px;
     opacity: 0;
     transform: translateY(46px) scale(0.965);
     transition: opacity .5s cubic-bezier(.2,.7,.2,1), transform .5s cubic-bezier(.2,.7,.2,1);
@@ -55,7 +55,7 @@
   #alert::before {
     content: "";
     position: absolute; left: 50%; top: 46%;
-    width: 1700px; height: 1100px;
+    width: 1380px; height: 900px;
     transform: translate(-50%,-50%);
     background: radial-gradient(ellipse at center, rgba(10,10,12,0.55) 0%, rgba(10,10,12,0) 68%);
     z-index: -1; pointer-events: none;
@@ -68,13 +68,13 @@
   .br.bl { bottom: 16px; left: 16px;  border-bottom: 2px solid rgba(240,240,238,0.55); border-left: 2px solid rgba(240,240,238,0.55); }
   .br.brr{ bottom: 16px; right: 16px; border-bottom: 2px solid rgba(240,240,238,0.55); border-right: 2px solid rgba(240,240,238,0.55); }
 
-  #blobCanvas { display: block; width: 1280px; height: 440px; }
+  #blobCanvas { display: block; width: 1030px; height: 354px; }
 
-  .meta { padding: 4px 64px 0; text-align: center; }
-  #aFig   { font-size: 19px; letter-spacing: 3px; color: var(--g4); text-transform: lowercase; }
-  #aLabel { font-size: 26px; letter-spacing: 8px; color: var(--g4); text-transform: uppercase; margin-top: 14px; }
-  #aName  { font-size: 78px; font-weight: 600; letter-spacing: 1px; color: var(--spec); line-height: 1.05; margin-top: 10px; word-break: break-word; }
-  #aSub   { font-size: 30px; letter-spacing: 1px; color: rgba(240,240,238,0.55); margin-top: 16px; }
+  .meta { padding: 2px 52px 0; text-align: center; }
+  #aFig   { font-size: 16px; letter-spacing: 3px; color: var(--g4); text-transform: lowercase; }
+  #aLabel { font-size: 21px; letter-spacing: 6px; color: var(--g4); text-transform: uppercase; margin-top: 12px; }
+  #aName  { font-size: 62px; font-weight: 600; letter-spacing: 1px; color: var(--spec); line-height: 1.05; margin-top: 8px; word-break: break-word; }
+  #aSub   { font-size: 25px; letter-spacing: 1px; color: rgba(240,240,238,0.55); margin-top: 13px; }
 
   /* barre de vie (minuterie de l'alerte) */
   .lifebar { position: absolute; left: 0; bottom: 0; height: 4px; width: 100%; background: rgba(240,240,238,0.08); }
