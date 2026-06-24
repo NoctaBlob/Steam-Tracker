@@ -260,6 +260,35 @@ function connectTwitchIRC() {
         // Keepalive
         if (msg.includes('PING')) { ws.send('PONG :tmi.twitch.tv'); return; }
 
+        // ─── USERNOTICE : subs / resubs / gifts / raids ───
+        if (msg.includes(' USERNOTICE ')) {
+            const un = msg.match(/^@([^ ]+) :tmi\.twitch\.tv USERNOTICE/);
+            if (un) {
+                const t = {};
+                un[1].split(';').forEach(p => { const [k, v] = p.split('='); t[k] = v; });
+                const id   = t['msg-id'];
+                const user = (t['display-name'] || t['login'] || 'anonyme');
+
+                if (id === 'sub' || id === 'resub') {
+                    const months = parseInt(t['msg-param-cumulative-months'] || t['msg-param-months'] || '1', 10);
+                    twitchCache.lastSub = user;
+                    broadcastSSE('sub', { username: user, months });
+                    console.log(`[EVENT] sub : ${user} (${months} mois)`);
+                } else if (id === 'subgift' || id === 'anonsubgift') {
+                    const recipient = t['msg-param-recipient-display-name'] || t['msg-param-recipient-user-name'] || '';
+                    twitchCache.lastSub = user;
+                    broadcastSSE('sub', { username: user, months: 1, gift: true, recipient });
+                    console.log(`[EVENT] subgift : ${user} -> ${recipient}`);
+                } else if (id === 'raid') {
+                    const raider  = t['msg-param-displayName'] || t['msg-param-login'] || user;
+                    const viewers = parseInt(t['msg-param-viewerCount'] || '0', 10);
+                    broadcastSSE('raid', { username: raider, viewers });
+                    console.log(`[EVENT] raid : ${raider} (${viewers} spectateurs)`);
+                }
+            }
+            return;
+        }
+
         // Parse tags IRCv3
         const match = msg.match(/^@([^ ]+) :([^!]+)![^ ]+ PRIVMSG #\S+ :(.+)$/);
         if (!match) return;
@@ -295,6 +324,49 @@ function connectTwitchIRC() {
 }
 
 // ─────────────────────────────────────────────
+// Détection des NOUVEAUX FOLLOWERS (polling Helix)
+// ⚠ L'endpoint channels/followers exige un token UTILISATEUR
+//   avec le scope moderator:read:followers (broadcaster ou modo).
+//   Avec un token "app" seul, la liste peut revenir vide :
+//   dans ce cas l'alerte follow ne se déclenchera pas (sub/raid OK).
+// ─────────────────────────────────────────────
+let lastFollowAt = null;
+
+async function pollFollows() {
+    try {
+        if (!TWITCH_CLIENT_ID || !TWITCH_CHANNEL_ID) return;
+        const token = await getTwitchToken();
+        const headers = { 'Client-Id': TWITCH_CLIENT_ID, 'Authorization': `Bearer ${token}` };
+
+        const r = await axios.get(
+            `https://api.twitch.tv/helix/channels/followers?broadcaster_id=${TWITCH_CHANNEL_ID}&first=10`,
+            { headers }
+        );
+        const list = r.data.data || [];
+        if (list.length === 0) return;
+
+        // Premier passage : on mémorise la référence sans déclencher d'alerte
+        if (lastFollowAt === null) {
+            lastFollowAt = list[0].followed_at;
+            twitchCache.lastFollower = list[0].user_name;
+            return;
+        }
+
+        // Nouveaux follows depuis le dernier connu (du plus ancien au plus récent)
+        const fresh = list.filter(f => f.followed_at > lastFollowAt).reverse();
+        for (const f of fresh) {
+            twitchCache.lastFollower = f.user_name;
+            broadcastSSE('follow', { username: f.user_name });
+            console.log(`[EVENT] follow : ${f.user_name}`);
+        }
+        if (list[0].followed_at > lastFollowAt) lastFollowAt = list[0].followed_at;
+
+    } catch (error) {
+        console.error(`[FOLLOW] ${error.message}`);
+    }
+}
+
+// ─────────────────────────────────────────────
 // ROUTE 5 : SSE — flux temps réel pour les widgets
 // ─────────────────────────────────────────────
 app.get('/api/stream', (req, res) => {
@@ -326,4 +398,6 @@ app.listen(PORT, () => {
     console.log(` Serveur NoctaBlob actif sur le port ${PORT}`);
     console.log(`=============================================`);
     connectTwitchIRC();
+    pollFollows();
+    setInterval(pollFollows, 15000);
 });

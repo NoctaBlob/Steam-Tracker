@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>NOCTABLOB · Alertes</title>
+<!--
+  ════════════════════════════════════════════════════════════════
+  NOCTABLOB — OVERLAY ALERTES
+  ────────────────────────────────────────────────────────────────
+  • Source navigateur OBS, 3840×2160, fond transparent.
+  • À placer AU-DESSUS de toutes les scènes (s'affiche par-dessus le jeu).
+  • Écoute le flux SSE du serveur (http://localhost:3000/api/stream)
+    et réagit aux events :  follow · sub · tip · raid
+  • Touches de TEST (sans serveur) :
+        F = follow   S = sub   D = don   R = raid   A = aléatoire
+  ════════════════════════════════════════════════════════════════
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:    #0a0a0c;
+    --spec:  #f0f0ee;
+    --line:  rgba(240,240,238,0.14);
+    --g3:    #3a3a40;
+    --g4:    #555550;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 3840px; height: 2160px; background: transparent; overflow: hidden; }
+  body { font-family: 'IBM Plex Mono', monospace; }
+
+  #stage {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  /* le bloc est calé un peu au-dessus du centre pour dégager le jeu */
+  #stage { padding-bottom: 360px; }
+
+  #alert {
+    position: relative;
+    width: 1280px;
+    background: rgba(10,10,13,0.94);
+    border: 1.5px solid var(--line);
+    padding: 0 0 52px;
+    opacity: 0;
+    transform: translateY(46px) scale(0.965);
+    transition: opacity .5s cubic-bezier(.2,.7,.2,1), transform .5s cubic-bezier(.2,.7,.2,1);
+    will-change: opacity, transform;
+    box-shadow: 0 40px 120px rgba(0,0,0,0.55);
+  }
+  #alert.show { opacity: 1; transform: translateY(0) scale(1); }
+
+  /* halo derrière le bloc, pour lisibilité par-dessus le jeu */
+  #alert::before {
+    content: "";
+    position: absolute; left: 50%; top: 46%;
+    width: 1700px; height: 1100px;
+    transform: translate(-50%,-50%);
+    background: radial-gradient(ellipse at center, rgba(10,10,12,0.55) 0%, rgba(10,10,12,0) 68%);
+    z-index: -1; pointer-events: none;
+  }
+
+  /* coins labo */
+  .br { position: absolute; width: 34px; height: 34px; pointer-events: none; }
+  .br.tl { top: 16px; left: 16px;  border-top: 2px solid rgba(240,240,238,0.55); border-left: 2px solid rgba(240,240,238,0.55); }
+  .br.tr { top: 16px; right: 16px; border-top: 2px solid rgba(240,240,238,0.55); border-right: 2px solid rgba(240,240,238,0.55); }
+  .br.bl { bottom: 16px; left: 16px;  border-bottom: 2px solid rgba(240,240,238,0.55); border-left: 2px solid rgba(240,240,238,0.55); }
+  .br.brr{ bottom: 16px; right: 16px; border-bottom: 2px solid rgba(240,240,238,0.55); border-right: 2px solid rgba(240,240,238,0.55); }
+
+  #blobCanvas { display: block; width: 1280px; height: 440px; }
+
+  .meta { padding: 4px 64px 0; text-align: center; }
+  #aFig   { font-size: 19px; letter-spacing: 3px; color: var(--g4); text-transform: lowercase; }
+  #aLabel { font-size: 26px; letter-spacing: 8px; color: var(--g4); text-transform: uppercase; margin-top: 14px; }
+  #aName  { font-size: 78px; font-weight: 600; letter-spacing: 1px; color: var(--spec); line-height: 1.05; margin-top: 10px; word-break: break-word; }
+  #aSub   { font-size: 30px; letter-spacing: 1px; color: rgba(240,240,238,0.55); margin-top: 16px; }
+
+  /* barre de vie (minuterie de l'alerte) */
+  .lifebar { position: absolute; left: 0; bottom: 0; height: 4px; width: 100%; background: rgba(240,240,238,0.08); }
+  .lifebar i { display: block; height: 100%; width: 100%; background: var(--spec); }
+
+  /* repère clignotant "live" sur la fig */
+  .dot { display: inline-block; width: 11px; height: 11px; background: var(--spec); margin-right: 12px; vertical-align: middle; animation: blink 1.6s steps(1) infinite; }
+  @keyframes blink { 0%,55%{opacity:1} 56%,100%{opacity:.18} }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <div id="alert">
+      <span class="br tl"></span><span class="br tr"></span>
+      <span class="br bl"></span><span class="br brr"></span>
+
+      <canvas id="blobCanvas" width="1280" height="440"></canvas>
+
+      <div class="meta">
+        <div id="aFig"><span class="dot"></span><span id="aFigTxt">fig.11 · alert.specimen</span></div>
+        <div id="aLabel">NOUVEAU SPÉCIMEN</div>
+        <div id="aName">specimen</div>
+        <div id="aSub">intégré à la culture</div>
+      </div>
+
+      <div class="lifebar"><i id="aLife"></i></div>
+    </div>
+  </div>
+
+<script>
+  // ════════════════ CONFIG ════════════════
+  const API   = 'http://localhost:3000';
+  const SOUND = true;      // bip synthétisé léger à chaque alerte
+  const TAU   = Math.PI * 2;
+
+  // durées (ms)
+  const IN_AT   = 500;     // fin de l'entrée du bloc
+  const OUT_AT  = 6000;    // début de la sortie
+  const TOTAL   = 6600;    // durée totale
+  const ACT_A   = 500;     // début de l'action canvas
+  const ACT_B   = 4600;    // fin de l'action canvas (puis maintien)
+
+  // ════════════════ ÉLÉMENTS ════════════════
+  const el = {
+    alert: document.getElementById('alert'),
+    fig:   document.getElementById('aFigTxt'),
+    label: document.getElementById('aLabel'),
+    name:  document.getElementById('aName'),
+    sub:   document.getElementById('aSub'),
+    life:  document.getElementById('aLife'),
+  };
+  const cv  = document.getElementById('blobCanvas');
+  const ctx = cv.getContext('2d');
+  const CW = 1280, CH = 440, MCX = CW / 2, MCY = CH / 2;
+
+  // ════════════════ DÉFINITIONS D'ALERTES ════════════════
+  const FIGS = { follow: 'fig.11 · absorption', sub: 'fig.12 · mitose', tip: 'fig.13 · nutriment', raid: 'fig.14 · afflux' };
+  const ALERTS = {
+    follow: { label: 'NOUVEAU SPÉCIMEN', sub: (d) => 'intégré à la culture · merci' },
+    sub:    { label: 'MITOSE — ABONNEMENT', sub: (d) => d.months > 1 ? d.months + ' mois de culture' : 'specimen confirmé' },
+    tip:    { label: 'NUTRIMENT REÇU', sub: (d) => d.amount ? String(d.amount) : 'don reçu · merci' },
+    raid:   { label: 'AFFLUX EXTERNE', sub: (d) => (d.viewers ? d.viewers : '?') + ' spécimens en renfort' },
+  };
+
+  // ════════════════ OUTILS BLOB ════════════════
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  function harm() {
+    return [
+      { k: 2, amp: 0.085, tw: 0.85, ph: Math.random() * TAU },
+      { k: 3, amp: 0.052, tw: 1.30, ph: Math.random() * TAU },
+      { k: 5, amp: 0.032, tw: 0.55, ph: Math.random() * TAU },
+      { k: 7, amp: 0.020, tw: 1.70, ph: Math.random() * TAU },
+    ];
+  }
+  function radiusAt(R, hm, ang, t, cycle) {
+    let m = 1, bw = TAU / cycle;
+    for (const h of hm) m += h.amp * Math.sin(h.k * ang + h.tw * bw * t + h.ph);
+    return R * m;
+  }
+  function blobPts(cx, cy, R, hm, t, cycle, N) {
+    const pts = [];
+    for (let i = 0; i < N; i++) {
+      const ang = (i / N) * TAU;
+      const r = radiusAt(R, hm, ang, t, cycle);
+      pts.push([cx + Math.cos(ang) * r, cy + Math.sin(ang) * r]);
+    }
+    return pts;
+  }
+  function fillBlob(pts, alpha) {
+    if (alpha <= 0.002 || pts.length < 3) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) {
+      const p0 = pts[i - 1], p1 = pts[i];
+      ctx.quadraticCurveTo(p0[0], p0[1], (p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2);
+    }
+    const last = pts[pts.length - 1], first = pts[0];
+    ctx.quadraticCurveTo(last[0], last[1], (last[0] + first[0]) / 2, (last[1] + first[1]) / 2);
+    ctx.closePath();
+    ctx.fillStyle = '#f0f0ee';
+    ctx.fill();
+    ctx.restore();
+  }
+  const smooth = (a, b, x) => { let t = (x - a) / (b - a); t = t < 0 ? 0 : t > 1 ? 1 : t; return t * t * (3 - 2 * t); };
+  const bump   = (x, c, w) => Math.max(0, 1 - Math.abs(x - c) / w);
+  const lerp   = (a, b, t) => a + (b - a) * t;
+
+  // ════════════════ MISE EN PLACE PAR TYPE ════════════════
+  let A = null; // animation courante
+
+  function buildAnim(type) {
+    if (type === 'follow') {
+      return { type, main: harm(), sat: harm(), satCyc: rnd(3, 4.2), arc: rnd(-60, 60) };
+    }
+    if (type === 'sub') {
+      return { type, h1: harm(), h2: harm(), c1: rnd(5, 7), c2: rnd(5, 7) };
+    }
+    if (type === 'tip') {
+      const nut = [];
+      for (let i = 0; i < 6; i++) nut.push({ ang: rnd(0, TAU), R0: rnd(210, 300), delay: i * 0.085, hm: harm(), cyc: rnd(2.5, 4) });
+      return { type, main: harm(), nut };
+    }
+    // raid
+    const sw = [];
+    const N = 11;
+    for (let i = 0; i < N; i++) {
+      const a0 = (i / N) * TAU + rnd(-0.2, 0.2);
+      const ta = (i / N) * TAU;
+      sw.push({
+        sx: MCX + Math.cos(a0) * rnd(640, 760), sy: MCY + Math.sin(a0) * rnd(360, 460),
+        tx: MCX + Math.cos(ta) * rnd(70, 150),  ty: MCY + Math.sin(ta) * rnd(40, 95),
+        R: rnd(26, 50), cyc: rnd(2.5, 4.5), hm: harm(), delay: rnd(0, 0.18),
+      });
+    }
+    return { type, sw, core: harm() };
+  }
+
+  // ════════════════ DESSIN PAR TYPE ════════════════
+  function draw(type, p, t) {
+    ctx.clearRect(0, 0, CW, CH);
+
+    if (type === 'follow') {
+      const travel = smooth(0, 0.55, p);
+      const merge  = smooth(0.55, 0.74, p);
+      const mainScale = lerp(0.55, 1, smooth(0, 0.4, p)) * (1 + 0.14 * bump(p, 0.66, 0.12));
+      const mR = 98 * mainScale;
+      // satellite entrant (droite -> centre) avec léger arc
+      const satScale = 1 - merge;
+      if (satScale > 0.02) {
+        const sx = lerp(CW + 130, MCX, travel);
+        const sy = MCY + Math.sin(travel * Math.PI) * A.arc;
+        fillBlob(blobPts(sx, sy, 48 * satScale, A.sat, t, A.satCyc, 90), 1);
+      }
+      fillBlob(blobPts(MCX, MCY, mR, A.main, t, 6.5, 170), 1);
+
+    } else if (type === 'sub') {
+      const appear = smooth(0, 0.22, p);
+      const split  = smooth(0.30, 0.66, p);
+      const sep = split * 168;
+      const pinch = 1 - 0.16 * Math.sin(split * Math.PI);
+      const sc = appear * pinch * (1 - 0.10 * split);
+      if (sep < 3) {
+        fillBlob(blobPts(MCX, MCY, 104 * appear, A.h1, t, A.c1, 170), 1);
+      } else {
+        // les deux filles (même couleur => union nette au moment du pincement)
+        const bob = Math.sin(t * 1.6) * 6;
+        fillBlob(blobPts(MCX - sep, MCY - bob, 92 * sc, A.h1, t, A.c1, 150), 1);
+        fillBlob(blobPts(MCX + sep, MCY + bob, 92 * sc, A.h2, t, A.c2, 150), 1);
+      }
+
+    } else if (type === 'tip') {
+      const appear = smooth(0, 0.25, p);
+      let pulses = 0;
+      // nutriments en spirale vers le centre
+      for (const n of A.nut) {
+        const np = smooth(0, 0.55, p - n.delay);
+        if (np <= 0) continue;
+        if (np >= 1) { pulses += bump(p, n.delay + 0.55, 0.05); continue; }
+        const rr = lerp(n.R0, 78, np);
+        const aa = n.ang + np * 3.4;
+        const nx = MCX + Math.cos(aa) * rr, ny = MCY + Math.sin(aa) * rr * 0.62;
+        fillBlob(blobPts(nx, ny, lerp(22, 9, np), n.hm, t, n.cyc, 60), lerp(0.9, 0.25, np));
+      }
+      const mScale = appear * (1 + 0.05 * Math.sin(t * 4.5) + 0.18 * pulses);
+      fillBlob(blobPts(MCX, MCY, 96 * mScale, A.main, t, 6, 170), 1);
+
+    } else if (type === 'raid') {
+      const core = smooth(0.1, 0.6, p);
+      // cœur de colonie
+      if (core > 0.02) fillBlob(blobPts(MCX, MCY, 70 * core, A.core, t, 6, 150), 1);
+      // essaim convergent
+      for (const s of A.sw) {
+        const sp = smooth(0, 0.62, p - s.delay);
+        const x = lerp(s.sx, s.tx, sp);
+        const y = lerp(s.sy, s.ty, sp);
+        fillBlob(blobPts(x, y, s.R, s.hm, t, s.cyc, 80), lerp(0.35, 1, sp));
+      }
+    }
+  }
+
+  // ════════════════ FILE D'ATTENTE & LECTURE ════════════════
+  const queue = [];
+  let active = false;
+
+  function show(type, data) {
+    if (!ALERTS[type]) return;
+    queue.push({ type, data: data || {} });
+    if (!active) pump();
+  }
+
+  function pump() {
+    if (queue.length === 0) { active = false; return; }
+    active = true;
+    const { type, data } = queue.shift();
+    const def = ALERTS[type];
+
+    el.fig.textContent = FIGS[type] || 'fig · specimen';
+    el.label.textContent = def.label;
+    el.sub.textContent = def.sub(data);
+    decode(el.name, data.username || data.name || 'anonyme');
+
+    A = buildAnim(type);
+    A.start = performance.now();
+    el.alert.classList.add('show');
+    blip(type);
+
+    // sortie + suite
+    setTimeout(() => el.alert.classList.remove('show'), OUT_AT);
+    setTimeout(() => { A = null; ctx.clearRect(0, 0, CW, CH); setTimeout(pump, 350); }, TOTAL);
+  }
+
+  // boucle de rendu
+  function loop(now) {
+    if (A) {
+      const e = now - A.start;
+      const t = e / 1000;
+      const p = smooth(ACT_A, ACT_B, e);
+      draw(A.type, p, t);
+      el.life.style.width = Math.max(0, 100 * (1 - e / OUT_AT)) + '%';
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // ════════════════ EFFET DÉCODAGE TEXTE ════════════════
+  const GLY = '▓▒░#%*/\\|=+<>0123456789';
+  let decodeTok = 0;
+  function decode(node, final) {
+    const tok = ++decodeTok;
+    const dur = 560, t0 = performance.now();
+    (function step() {
+      if (tok !== decodeTok) return;
+      const k = Math.min(1, (performance.now() - t0) / dur);
+      const lock = Math.floor(k * final.length);
+      let out = final.slice(0, lock);
+      for (let i = lock; i < final.length; i++) out += final[i] === ' ' ? ' ' : GLY[(Math.random() * GLY.length) | 0];
+      node.textContent = out;
+      if (k < 1) requestAnimationFrame(step); else node.textContent = final;
+    })();
+  }
+
+  // ════════════════ SON (synthétisé, léger) ════════════════
+  let actx = null;
+  function blip(type) {
+    if (!SOUND) return;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === 'suspended') actx.resume();
+      const base = { follow: 340, sub: 300, tip: 420, raid: 240 }[type] || 320;
+      const now = actx.currentTime;
+      [0, 0.11].forEach((off, i) => {
+        const o = actx.createOscillator(), g = actx.createGain();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(base * (i ? 1.5 : 1), now + off);
+        g.gain.setValueAtTime(0.0001, now + off);
+        g.gain.exponentialRampToValueAtTime(0.12, now + off + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + off + 0.34);
+        o.connect(g).connect(actx.destination);
+        o.start(now + off); o.stop(now + off + 0.36);
+      });
+    } catch (e) {}
+  }
+
+  // ════════════════ SSE (events serveur) ════════════════
+  function initSSE() {
+    const es = new EventSource(`${API}/api/stream`);
+    es.addEventListener('follow', (e) => show('follow', safe(e.data)));
+    es.addEventListener('sub',    (e) => show('sub',    safe(e.data)));
+    es.addEventListener('tip',    (e) => show('tip',    safe(e.data)));
+    es.addEventListener('raid',   (e) => show('raid',   safe(e.data)));
+    // event générique optionnel : { type, ...data }
+    es.addEventListener('alert',  (e) => { const d = safe(e.data); if (d.type) show(d.type, d); });
+    es.onerror = () => { es.close(); setTimeout(initSSE, 4000); };
+  }
+  function safe(s) { try { return JSON.parse(s); } catch { return {}; } }
+  initSSE();
+
+  // ════════════════ TESTS CLAVIER ════════════════
+  const TEST_NAMES = ['specimen_07', 'culture_petri', 'noct_viewer', 'mitose_22', 'flux_lab', 'organite_x', 'membrane_kid'];
+  const rname = () => TEST_NAMES[(Math.random() * TEST_NAMES.length) | 0];
+  window.addEventListener('keydown', (ev) => {
+    const k = ev.key.toLowerCase();
+    if (k === 'f') show('follow', { username: rname() });
+    else if (k === 's') show('sub',  { username: rname(), months: (Math.random() * 18 | 0) + 1 });
+    else if (k === 'd') show('tip',  { username: rname(), amount: (rnd(2, 50)).toFixed(2).replace('.', ',') + ' €' });
+    else if (k === 'r') show('raid', { username: rname(), viewers: (rnd(8, 120) | 0) });
+    else if (k === 'a') { const t = ['follow', 'sub', 'tip', 'raid'][Math.random() * 4 | 0]; window.dispatchEvent(new KeyboardEvent('keydown', { key: { follow: 'f', sub: 's', tip: 'd', raid: 'r' }[t] })); }
+  });
+</script>
+</body>
+</html>
