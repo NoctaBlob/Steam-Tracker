@@ -257,11 +257,23 @@ function connectTwitchIRC() {
     ws.on('message', (raw) => {
         const msg = raw.toString();
 
+        // Log RAW — utile pour diagnostiquer les problèmes de parsing
+        console.log('[IRC RAW]', msg.trimEnd());
+
         // Keepalive
         if (msg.includes('PING')) { ws.send('PONG :tmi.twitch.tv'); return; }
 
+        // Les messages Twitch IRC peuvent arriver en plusieurs lignes dans un seul frame
+        const lines = msg.split('\r\n').filter(l => l.trim());
+        for (const line of lines) {
+            parseIRCLine(line);
+        }
+    });
+}
+
+function parseIRCLine(line) {
         // Parse tags IRCv3
-        const match = msg.match(/^@([^ ]+) :([^!]+)![^ ]+ PRIVMSG #\S+ :(.+)$/);
+        const match = line.match(/^@([^ ]+) :([^!]+)![^ ]+ PRIVMSG #\S+ :(.+)$/);
         if (!match) return;
 
         const tagStr = match[1];
@@ -274,17 +286,30 @@ function connectTwitchIRC() {
             tags[k] = v;
         });
 
+        // ─── Détection des Bits (dons natifs Twitch) ───
+        if (tags['bits']) {
+            const amount = parseInt(tags['bits'], 10);
+            twitchCache.lastDon       = tags['display-name'] || username;
+            twitchCache.lastDonAmount = amount + ' bits';
+            broadcastSSE('tip', {
+                username: tags['display-name'] || username,
+                amount:   amount + ' bits'
+            });
+            console.log(`[EVENT] tip : ${tags['display-name'] || username} — ${amount} bits`);
+        }
+
         const chatMsg = {
             id:       tags['id'] || Date.now().toString(),
             username: tags['display-name'] || username,
             color:    tags['color'] || '#f0f0ee',
             badges:   tags['badges'] || '',
+            bits:     tags['bits'] ? parseInt(tags['bits'], 10) : 0,
             text,
             ts: Date.now()
         };
 
+        console.log(`[IRC] chat : ${chatMsg.username} — ${chatMsg.text}`);
         broadcastSSE('chat', chatMsg);
-    });
 
     ws.on('close', () => {
         console.warn("[IRC] Déconnecté. Reconnexion dans 5s...");
