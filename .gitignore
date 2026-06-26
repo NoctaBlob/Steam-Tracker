@@ -1,3 +1,11 @@
+# Dépendances
 node_modules/
+
+# Variables d'environnement — ne jamais commiter
 .env
+
+# Données locales générées par TUNA
 data/tuna_track.txt
+
+# Fichiers parasites
+.thumbnail
