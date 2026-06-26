@@ -14,8 +14,10 @@ const STEAM_ID      = process.env.STEAM_ID;
 
 const TWITCH_CLIENT_ID     = process.env.TWITCH_CLIENT_ID;
 const TWITCH_CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET;
-const TWITCH_CHANNEL       = process.env.TWITCH_CHANNEL;   // ex: "noctablob"
-const TWITCH_CHANNEL_ID    = process.env.TWITCH_CHANNEL_ID; // ID numérique du channel
+const TWITCH_CHANNEL       = process.env.TWITCH_CHANNEL;
+const TWITCH_CHANNEL_ID    = process.env.TWITCH_CHANNEL_ID;
+const TWITCH_USER_TOKEN    = process.env.TWITCH_USER_TOKEN;
+const TWITCH_REFRESH_TOKEN = process.env.TWITCH_REFRESH_TOKEN;
 
 // ─────────────────────────────────────────────
 // CORS
@@ -130,41 +132,58 @@ app.get('/api/library', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
-// TWITCH — token OAuth app (Client Credentials)
+// TWITCH — token utilisateur (User OAuth)
+// Nécessaire pour followers, subs, EventSub
 // ─────────────────────────────────────────────
-let twitchToken = null;
-let twitchTokenExpiry = 0;
+let userToken = TWITCH_USER_TOKEN;
 
-async function getTwitchToken() {
-    if (twitchToken && Date.now() < twitchTokenExpiry) return twitchToken;
-    console.log("[TWITCH] Renouvellement du token OAuth...");
-    const r = await axios.post(
-        `https://id.twitch.tv/oauth2/token`,
-        null,
-        { params: { client_id: TWITCH_CLIENT_ID, client_secret: TWITCH_CLIENT_SECRET, grant_type: 'client_credentials' } }
-    );
-    twitchToken = r.data.access_token;
-    twitchTokenExpiry = Date.now() + (r.data.expires_in - 60) * 1000;
-    console.log("[TWITCH] Token obtenu.");
-    return twitchToken;
+async function refreshUserToken() {
+    if (!TWITCH_REFRESH_TOKEN || !TWITCH_CLIENT_ID || !TWITCH_CLIENT_SECRET) return;
+    try {
+        console.log("[TWITCH] Renouvellement du token utilisateur...");
+        const r = await axios.post(`https://id.twitch.tv/oauth2/token`, null, {
+            params: {
+                grant_type:    'refresh_token',
+                refresh_token: TWITCH_REFRESH_TOKEN,
+                client_id:     TWITCH_CLIENT_ID,
+                client_secret: TWITCH_CLIENT_SECRET,
+            }
+        });
+        userToken = r.data.access_token;
+        console.log("[TWITCH] Token utilisateur renouvelé.");
+    } catch (e) {
+        console.error("[TWITCH] Erreur refresh token:", e.message);
+    }
+}
+
+function getUserHeaders() {
+    return { 'Client-Id': TWITCH_CLIENT_ID, 'Authorization': `Bearer ${userToken}` };
 }
 
 // ─────────────────────────────────────────────
 // ROUTE 3 : Twitch — dernier follower / sub / don
 // ─────────────────────────────────────────────
 app.get('/api/twitch/info', async (req, res) => {
-    console.log(`\n[ROUTE] /api/twitch/info`);
     try {
-        if (!TWITCH_CLIENT_ID || !TWITCH_CLIENT_SECRET || !TWITCH_CHANNEL_ID)
+        if (!TWITCH_CLIENT_ID || !TWITCH_CHANNEL_ID)
             return res.status(500).json({ error: "Variables Twitch manquantes." });
 
-        const token = await getTwitchToken();
-        const headers = { 'Client-Id': TWITCH_CLIENT_ID, 'Authorization': `Bearer ${token}` };
+        const headers = getUserHeaders();
 
         const [followersRes, subsRes] = await Promise.allSettled([
             axios.get(`https://api.twitch.tv/helix/channels/followers?broadcaster_id=${TWITCH_CHANNEL_ID}&first=1`, { headers }),
             axios.get(`https://api.twitch.tv/helix/subscriptions?broadcaster_id=${TWITCH_CHANNEL_ID}&first=1`, { headers })
         ]);
+
+        // Si 401 → token expiré, on refresh
+        const needsRefresh =
+            (followersRes.status === 'rejected' && followersRes.reason?.response?.status === 401) ||
+            (subsRes.status === 'rejected' && subsRes.reason?.response?.status === 401);
+
+        if (needsRefresh) {
+            await refreshUserToken();
+            return res.redirect('/api/twitch/info');
+        }
 
         const lastFollower = followersRes.status === 'fulfilled' && followersRes.value.data.data.length > 0
             ? followersRes.value.data.data[0].user_name : null;
@@ -172,10 +191,12 @@ app.get('/api/twitch/info', async (req, res) => {
         const lastSub = subsRes.status === 'fulfilled' && subsRes.value.data.data.length > 0
             ? subsRes.value.data.data[0].user_name : null;
 
-        // Les dons (bits) nécessitent le scope bits:read — retournés depuis le cache local
+        if (lastFollower) twitchCache.lastFollower = lastFollower;
+        if (lastSub)      twitchCache.lastSub      = lastSub;
+
         res.json({
-            lastFollower: lastFollower || twitchCache.lastFollower,
-            lastSub:      lastSub      || twitchCache.lastSub,
+            lastFollower: twitchCache.lastFollower,
+            lastSub:      twitchCache.lastSub,
             lastDon:      twitchCache.lastDon,
             lastDonAmount: twitchCache.lastDonAmount
         });
@@ -187,10 +208,7 @@ app.get('/api/twitch/info', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
-// ROUTE 4 : TUNA — musique en cours (OBS Plugin)
-// TUNA écrit dans un fichier local monté via Docker volume.
-// Le chemin dans le container est toujours /tuna/track.txt
-// (mappé depuis le chemin Windows dans docker-compose.yml)
+// ROUTE 4 : TUNA — musique en cours
 // ─────────────────────────────────────────────
 const TUNA_FILE = '/tuna/track.txt';
 let currentTrack = { title: null, artist: null, playing: false };
@@ -200,35 +218,24 @@ function parseTunaFile() {
         if (!fs.existsSync(TUNA_FILE)) return;
         const raw = fs.readFileSync(TUNA_FILE, 'utf8').trim();
         if (!raw) return;
-
-        // TUNA écrit du JSON compact avec {json_compact}
         const data = JSON.parse(raw);
-
         const title  = data.title  || data.name  || null;
         const artist = data.artists?.[0] || data.artist || data.first_artist || null;
-
         if (title !== currentTrack.title || artist !== currentTrack.artist) {
             currentTrack = { title, artist, playing: !!title };
             console.log(`[TUNA] ${artist} — ${title}`);
         }
-    } catch (e) {
-        // Fichier en cours d'écriture ou format inattendu — on ignore
-    }
+    } catch (e) {}
 }
 
-// Polling toutes les 2s — fs.watch peu fiable sur Docker/Windows
 parseTunaFile();
 setInterval(parseTunaFile, 2000);
 console.log(`[TUNA] Polling de ${TUNA_FILE} toutes les 2s.`);
 
-app.get('/api/tuna', (req, res) => {
-    res.json(currentTrack);
-});
+app.get('/api/tuna', (req, res) => res.json(currentTrack));
 
 // ─────────────────────────────────────────────
-// TWITCH IRC — WebSocket pour le chat
-// Connexion anonyme en lecture seule (justwatch)
-// Les messages sont broadcastés aux clients SSE
+// SSE + IRC + Cache
 // ─────────────────────────────────────────────
 let sseClients = [];
 let twitchCache = { lastFollower: null, lastSub: null, lastDon: null, lastDonAmount: null };
@@ -241,6 +248,9 @@ function broadcastSSE(event, data) {
     });
 }
 
+// ─────────────────────────────────────────────
+// TWITCH IRC — chat en lecture seule
+// ─────────────────────────────────────────────
 function connectTwitchIRC() {
     if (!TWITCH_CHANNEL) { console.warn("[IRC] TWITCH_CHANNEL non défini, skip."); return; }
     console.log(`[IRC] Connexion au chat Twitch de #${TWITCH_CHANNEL}...`);
@@ -255,61 +265,45 @@ function connectTwitchIRC() {
     });
 
     ws.on('message', (raw) => {
-        const msg = raw.toString();
-
-        // Log RAW — utile pour diagnostiquer les problèmes de parsing
-        console.log('[IRC RAW]', msg.trimEnd());
-
-        // Keepalive
-        if (msg.includes('PING')) { ws.send('PONG :tmi.twitch.tv'); return; }
-
-        // Les messages Twitch IRC peuvent arriver en plusieurs lignes dans un seul frame
-        const lines = msg.split('\r\n').filter(l => l.trim());
+        const lines = raw.toString().split('\r\n').filter(l => l.trim());
         for (const line of lines) {
-            parseIRCLine(line);
+            if (line.startsWith('PING')) { ws.send('PONG :tmi.twitch.tv'); continue; }
+
+            const match = line.match(/^@([^ ]+) :([^!]+)![^ ]+ PRIVMSG #\S+ :(.+)$/);
+            if (!match) continue;
+
+            const tagStr   = match[1];
+            const username = match[2];
+            const text     = match[3].trimEnd();
+
+            const tags = {};
+            tagStr.split(';').forEach(t => {
+                const [k, v] = t.split('=');
+                tags[k] = v;
+            });
+
+            if (tags['bits']) {
+                const amount = parseInt(tags['bits'], 10);
+                twitchCache.lastDon       = tags['display-name'] || username;
+                twitchCache.lastDonAmount = amount + ' bits';
+                broadcastSSE('tip', { username: tags['display-name'] || username, amount: amount + ' bits' });
+                console.log(`[EVENT] tip : ${tags['display-name'] || username} — ${amount} bits`);
+            }
+
+            const chatMsg = {
+                id:       tags['id'] || Date.now().toString(),
+                username: tags['display-name'] || username,
+                color:    tags['color'] || '#f0f0ee',
+                badges:   tags['badges'] || '',
+                bits:     tags['bits'] ? parseInt(tags['bits'], 10) : 0,
+                text,
+                ts: Date.now()
+            };
+
+            console.log(`[IRC] chat : ${chatMsg.username} — ${chatMsg.text}`);
+            broadcastSSE('chat', chatMsg);
         }
     });
-}
-
-function parseIRCLine(line) {
-        // Parse tags IRCv3
-        const match = line.match(/^@([^ ]+) :([^!]+)![^ ]+ PRIVMSG #\S+ :(.+)$/);
-        if (!match) return;
-
-        const tagStr = match[1];
-        const username = match[2];
-        const text = match[3].trimEnd();
-
-        const tags = {};
-        tagStr.split(';').forEach(t => {
-            const [k, v] = t.split('=');
-            tags[k] = v;
-        });
-
-        // ─── Détection des Bits (dons natifs Twitch) ───
-        if (tags['bits']) {
-            const amount = parseInt(tags['bits'], 10);
-            twitchCache.lastDon       = tags['display-name'] || username;
-            twitchCache.lastDonAmount = amount + ' bits';
-            broadcastSSE('tip', {
-                username: tags['display-name'] || username,
-                amount:   amount + ' bits'
-            });
-            console.log(`[EVENT] tip : ${tags['display-name'] || username} — ${amount} bits`);
-        }
-
-        const chatMsg = {
-            id:       tags['id'] || Date.now().toString(),
-            username: tags['display-name'] || username,
-            color:    tags['color'] || '#f0f0ee',
-            badges:   tags['badges'] || '',
-            bits:     tags['bits'] ? parseInt(tags['bits'], 10) : 0,
-            text,
-            ts: Date.now()
-        };
-
-        console.log(`[IRC] chat : ${chatMsg.username} — ${chatMsg.text}`);
-        broadcastSSE('chat', chatMsg);
 
     ws.on('close', () => {
         console.warn("[IRC] Déconnecté. Reconnexion dans 5s...");
@@ -317,6 +311,112 @@ function parseIRCLine(line) {
     });
 
     ws.on('error', (e) => console.error("[IRC] Erreur:", e.message));
+}
+
+// ─────────────────────────────────────────────
+// TWITCH EVENTSUB — alertes temps réel
+// Follow, sub, raid, bits via WebSocket officiel
+// ─────────────────────────────────────────────
+let eventSubWs = null;
+let eventSubSessionId = null;
+
+function connectEventSub() {
+    if (!TWITCH_USER_TOKEN || !TWITCH_CHANNEL_ID || !TWITCH_CLIENT_ID) {
+        console.warn("[EVENTSUB] Variables manquantes (TWITCH_USER_TOKEN, TWITCH_CHANNEL_ID, TWITCH_CLIENT_ID), skip.");
+        return;
+    }
+    console.log("[EVENTSUB] Connexion au WebSocket Twitch EventSub...");
+    eventSubWs = new WebSocket('wss://eventsub.wss.twitch.tv/ws');
+
+    eventSubWs.on('open', () => console.log("[EVENTSUB] WebSocket connecté."));
+
+    eventSubWs.on('message', async (raw) => {
+        try {
+            const msg  = JSON.parse(raw.toString());
+            const type = msg.metadata?.message_type;
+
+            if (type === 'session_welcome') {
+                eventSubSessionId = msg.payload.session.id;
+                console.log(`[EVENTSUB] Session : ${eventSubSessionId}`);
+                await subscribeToEvents();
+            }
+
+            if (type === 'notification') {
+                handleEventSubEvent(msg.metadata.subscription_type, msg.payload.event);
+            }
+
+            if (type === 'session_reconnect') {
+                console.log("[EVENTSUB] Reconnexion demandée...");
+                eventSubWs.close();
+                eventSubWs = new WebSocket(msg.payload.session.reconnect_url);
+            }
+
+        } catch (e) {
+            console.error("[EVENTSUB] Erreur parsing:", e.message);
+        }
+    });
+
+    eventSubWs.on('close', () => {
+        console.warn("[EVENTSUB] Déconnecté. Reconnexion dans 10s...");
+        setTimeout(connectEventSub, 10000);
+    });
+
+    eventSubWs.on('error', (e) => console.error("[EVENTSUB] Erreur:", e.message));
+}
+
+async function subscribeToEvents() {
+    const headers   = { ...getUserHeaders(), 'Content-Type': 'application/json' };
+    const transport = { method: 'websocket', session_id: eventSubSessionId };
+
+    const subscriptions = [
+        { type: 'channel.follow',            version: '2', condition: { broadcaster_user_id: TWITCH_CHANNEL_ID, moderator_user_id: TWITCH_CHANNEL_ID } },
+        { type: 'channel.subscribe',         version: '1', condition: { broadcaster_user_id: TWITCH_CHANNEL_ID } },
+        { type: 'channel.subscription.gift', version: '1', condition: { broadcaster_user_id: TWITCH_CHANNEL_ID } },
+        { type: 'channel.raid',              version: '1', condition: { to_broadcaster_user_id: TWITCH_CHANNEL_ID } },
+        { type: 'channel.cheer',             version: '1', condition: { broadcaster_user_id: TWITCH_CHANNEL_ID } },
+    ];
+
+    for (const sub of subscriptions) {
+        try {
+            await axios.post('https://api.twitch.tv/helix/eventsub/subscriptions', { ...sub, transport }, { headers });
+            console.log(`[EVENTSUB] Abonné à : ${sub.type}`);
+        } catch (e) {
+            console.error(`[EVENTSUB] Erreur ${sub.type} :`, e.response?.data?.message || e.message);
+        }
+    }
+}
+
+function handleEventSubEvent(type, event) {
+    console.log(`[EVENTSUB] Événement : ${type}`);
+
+    if (type === 'channel.follow') {
+        twitchCache.lastFollower = event.user_name;
+        broadcastSSE('follow', { username: event.user_name });
+        console.log(`[EVENT] follow : ${event.user_name}`);
+    }
+
+    if (type === 'channel.subscribe') {
+        twitchCache.lastSub = event.user_name;
+        broadcastSSE('sub', { username: event.user_name, months: event.cumulative_months || 1, tier: event.tier });
+        console.log(`[EVENT] sub : ${event.user_name}`);
+    }
+
+    if (type === 'channel.subscription.gift') {
+        broadcastSSE('sub', { username: event.user_name || 'Anonyme', months: event.total || 1, gift: true });
+        console.log(`[EVENT] gift sub : ${event.user_name}`);
+    }
+
+    if (type === 'channel.raid') {
+        broadcastSSE('raid', { username: event.from_broadcaster_user_name, viewers: event.viewers });
+        console.log(`[EVENT] raid : ${event.from_broadcaster_user_name} — ${event.viewers} viewers`);
+    }
+
+    if (type === 'channel.cheer') {
+        twitchCache.lastDon       = event.user_name || 'Anonyme';
+        twitchCache.lastDonAmount = event.bits + ' bits';
+        broadcastSSE('tip', { username: event.user_name || 'Anonyme', amount: event.bits + ' bits' });
+        console.log(`[EVENT] cheer : ${event.user_name} — ${event.bits} bits`);
+    }
 }
 
 // ─────────────────────────────────────────────
@@ -328,7 +428,6 @@ app.get('/api/stream', (req, res) => {
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
-    // Heartbeat toutes les 20s pour garder la connexion ouverte
     const heartbeat = setInterval(() => {
         try { res.write(': heartbeat\n\n'); } catch { clearInterval(heartbeat); }
     }, 20000);
@@ -351,4 +450,5 @@ app.listen(PORT, () => {
     console.log(` Serveur NoctaBlob actif sur le port ${PORT}`);
     console.log(`=============================================`);
     connectTwitchIRC();
+    connectEventSub();
 });

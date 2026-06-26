@@ -59,32 +59,33 @@
   #chat-feed {
     flex: 1; min-height: 0;
     padding: 28px 48px;
-    display: flex; flex-direction: column; justify-content: flex-end;
-    gap: 20px;
+    display: flex; flex-direction: column; justify-content: flex-start;
+    gap: 28px;
     overflow: hidden;
   }
 
   .chat-msg {
-    display: flex; flex-direction: column; gap: 6px;
-    border-left: 2px solid var(--line);
-    padding-left: 18px;
+    display: flex; flex-direction: column; gap: 8px;
+    border-left: 3px solid rgba(240,240,238,0.15);
+    padding-left: 22px;
     opacity: 1;
-    transition: opacity 0.4s ease;
+    transition: opacity 0.5s ease;
+    flex-shrink: 0;
   }
-  .chat-msg.fading { opacity: 0.22; }
+  .chat-msg.fading { opacity: 0.18; }
 
   .chat-user {
-    font-size: 22px; font-weight: 600;
-    /* couleur injectée inline par JS */
-    filter: saturate(0.5) brightness(1.3);
+    font-size: 30px; font-weight: 600;
+    /* couleur native Twitch — pas de filtre */
+    letter-spacing: 0.5px;
   }
   .chat-text {
-    font-size: 24px; font-weight: 400; color: var(--g1);
-    line-height: 1.45;
+    font-size: 28px; font-weight: 400; color: var(--g1);
+    line-height: 1.5;
     word-break: break-word;
   }
   .chat-ts {
-    font-size: 17px; color: var(--g4);
+    font-size: 19px; color: var(--g4);
   }
 
   /* pied chat */
@@ -199,7 +200,7 @@
 <script>
   const API = 'http://localhost:3000';
   const MAX_MESSAGES = 8;
-  const FADE_AFTER   = 4; // les messages au-delà de N s'estompent
+  const FADE_AFTER   = 5; // les 3 messages les plus anciens (en haut) s'estompent
 
   // ─── Horloge ───
   function tickClock() {
@@ -228,13 +229,13 @@
       `;
       feed.appendChild(el);
 
-      // Limiter le nombre de messages et estomper les anciens
+      // Limiter le nombre de messages
       const msgs = feed.querySelectorAll('.chat-msg');
       if (msgs.length > MAX_MESSAGES) msgs[0].remove();
 
+      // Les 3 plus anciens (en haut) s'estompent
       feed.querySelectorAll('.chat-msg').forEach((m, i, arr) => {
-        const fromEnd = arr.length - 1 - i;
-        m.classList.toggle('fading', fromEnd >= FADE_AFTER);
+        m.classList.toggle('fading', i < arr.length - FADE_AFTER);
       });
     });
 

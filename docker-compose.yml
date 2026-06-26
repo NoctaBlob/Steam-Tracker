@@ -2,9 +2,10 @@
 
   # ── API Node.js — Steam, Twitch, TUNA ──
   steam-api:
-    image: ghcr.io/noctablob/stream-noctablob:latest
+    build: .
+    #image: ghcr.io/noctablob/stream-noctablob:latest
     container_name: steam-api-server
-    pull_policy: always
+    pull_policy: build
     ports:
       - "3000:3000"
     environment:
@@ -14,6 +15,8 @@
       - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
       - TWITCH_CHANNEL=${TWITCH_CHANNEL}
       - TWITCH_CHANNEL_ID=${TWITCH_CHANNEL_ID}
+      - TWITCH_USER_TOKEN=${TWITCH_USER_TOKEN}
+      - TWITCH_REFRESH_TOKEN=${TWITCH_REFRESH_TOKEN}
     volumes:
       - C:\Developpement\Stream-NoctaBlob\data\tuna_track.txt:/tuna/track.txt:ro
     restart: unless-stopped
